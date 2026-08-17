@@ -1,0 +1,10 @@
+[package]
+name = "extract_zh_corpus"
+version = "0.1.0"
+edition = "2021"
+description = "从汉化版 patch.xp3 提取丛雨官方中译台词, 生成 murasame_corpus_zh.jsonl"
+
+[dependencies]
+yuzu-xp3 = { path = "../../../lyco-engine/engine/crates/yuzu-xp3" }
+yuzu-scn = { path = "../../../lyco-engine/engine/crates/yuzu-scn" }
+serde_json = "1"

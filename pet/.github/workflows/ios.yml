@@ -1,0 +1,68 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios, aarch64-apple-ios-sim
+
+      - name: Build for simulator (Apple Silicon)
+        run: cargo build --target aarch64-apple-ios-sim --release
+
+      - name: Build for device
+        run: cargo build --target aarch64-apple-ios --release
+
+      - name: Create simulator app bundle
+        run: |
+          mkdir -p build/ios/cute-pet-sim.app/assets
+          cp target/aarch64-apple-ios-sim/release/cute-pet build/ios/cute-pet-sim.app/
+          cp -r assets/* build/ios/cute-pet-sim.app/assets/ 2>/dev/null || true
+          cat > build/ios/cute-pet-sim.app/Info.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+          <key>CFBundleExecutable</key>
+          <string>cute-pet</string>
+          <key>CFBundleIdentifier</key>
+          <string>com.cute-pet</string>
+          <key>CFBundleName</key>
+          <string>cute-pet</string>
+          <key>CFBundleVersion</key>
+          <string>1</string>
+          <key>CFBundleShortVersionString</key>
+          <string>1.0</string>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Create device app bundle
+        run: |
+          mkdir -p build/ios/cute-pet-device.app/assets
+          cp target/aarch64-apple-ios/release/cute-pet build/ios/cute-pet-device.app/
+          cp -r assets/* build/ios/cute-pet-device.app/assets/ 2>/dev/null || true
+          cp build/ios/cute-pet-sim.app/Info.plist build/ios/cute-pet-device.app/Info.plist
+
+      - name: Upload simulator bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-bundle
+          path: build/ios/cute-pet-sim.app
+
+      - name: Upload device bundle (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-device-bundle-unsigned
+          path: build/ios/cute-pet-device.app

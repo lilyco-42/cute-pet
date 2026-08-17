@@ -1,0 +1,52 @@
+[package]
+name = "cute-pet"
+version = "0.1.1"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.104"
+demo = { path = "../lazy-ply" }
+ply-engine = { version = "1.1", default-features = false, features = ["built-in-shaders", "audio"] }
+rust-embed = "8.12.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = { version = "3.4.0", features = ["json"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+# 本地 vendored miniquad-ply(为 HarmonyOS/ohos 添加 native backend 支持,
+# 仿 android; 原 registry 版无 ohos 后端)。其它平台行为不变。
+[patch.crates-io]
+miniquad-ply = { path = "vendor/miniquad-ply" }
+# quad-snd(宏 quad 音频)在 ohos 下走 noop 桩(鸿蒙音频后续用 OH_AudioRenderer 单独接)
+quad-snd = { path = "vendor/quad-snd" }
+
+# Android APK 构建配置(cargo-quad-apk / plyx apk --native)
+# assets 指向空目录: 本应用全部资产经 rust-embed 编译进 .so, APK 无需打包 assets
+# (pet/assets 内含中文文件名, aapt2 在 Windows 上无法处理)
+[package.metadata.android]
+assets = "assets_apk/"
+# 发布版只打 arm64(真机, 见 pet/release/); 开发/模拟器测试用双 ABI
+# 发布构建: 注释掉 x86_64, plyx apk --native, 复制到 release/
+build_targets = ["aarch64-linux-android", "x86_64-linux-android"]
+# 网络权限(远程 TTS/LLM 必需; cargo-quad-apk 键名是 permission, 单数)
+permission = [{ name = "android.permission.INTERNET" }]
+# 允许 http 明文(本地/局域网 TTS 服务, 如模拟器 10.0.2.2)
+application_attributes = { "android:usesCleartextTraffic" = "true" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+# WASM 专用: 不启用 LTO(会破坏 miniquad JS 桥接符号), 体积优先
+[profile.release-wasm]
+inherits = "release"
+lto = false
+codegen-units = 16
+opt-level = "s"

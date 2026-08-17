@@ -1,0 +1,262 @@
+name: Build All Platforms
+
+# 跨 8 平台桌宠构建:
+#   Android(arm64/armv7/x86_64) · Windows(x64/arm64) · Linux(x64/arm64)
+#   macOS(aarch64/x86_64) · iOS(device+sim) · Web(WASM) · HarmonyOS(aarch64)
+#
+# 备注:
+#   - 所有资产经 rust-embed 编译进二进制(无运行时路径问题, 见 src/main.rs load_asset)
+#   - HarmonyOS 走自定义 miniquad-ply ohos backend + vendored 依赖(patch.crates-io)
+#   - 鸿蒙产物是可执行 ELF/PIE(.so 打包成 HAR), 见 docs/harmonyos-rust.md
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ============ Android ============
+  android:
+    name: Android (${{ matrix.abi }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: arm64-v8a
+            target: aarch64-linux-android
+          - abi: armeabi-v7a
+            target: armv7-linux-androideabi
+          - abi: x86_64
+            target: x86_64-linux-android
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install Android NDK & SDK
+        uses: android-actions/setup-android@v3
+      - name: Set Android build target
+        run: |
+          sed -i 's|build_targets = \[.*\]|build_targets = ["${{ matrix.target }}"]|' Cargo.toml
+      - name: Install plyx
+        run: cargo install plyx 2>/dev/null || cargo install plyx --locked
+      - name: Build APK
+        run: plyx apk --native
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ matrix.abi }}
+          path: |
+            target/android-artifacts/release/apk/*.apk
+            pet/target/android-artifacts/release/apk/*.apk
+          if-no-files-found: warn
+
+  # ============ Windows ============
+  windows:
+    name: Windows (${{ matrix.target }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-pc-windows-msvc, aarch64-pc-windows-msvc]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/cute-pet.exe
+          if-no-files-found: warn
+
+  # ============ Linux ============
+  linux:
+    name: Linux (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxi-dev libgl1-mesa-dev libwayland-dev libxkbcommon-dev pkg-config libgles2-mesa-dev
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/cute-pet
+          if-no-files-found: warn
+
+  # ============ macOS ============
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64-apple-darwin, x86_64-apple-darwin]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/cute-pet
+            target/${{ matrix.target }}/release/cute-pet.app
+          if-no-files-found: warn
+
+  # ============ iOS ============
+  ios:
+    name: iOS (${{ matrix.target }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64-apple-ios, aarch64-apple-ios-sim]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Create .app bundle
+        run: |
+          mkdir -p build/ios/cute-pet.app/assets
+          cp target/${{ matrix.target }}/release/cute-pet build/ios/cute-pet.app/
+          cat > build/ios/cute-pet.app/Info.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key><string>cute-pet</string>
+            <key>CFBundleIdentifier</key><string>com.cute.pet</string>
+            <key>CFBundleName</key><string>cute-pet</string>
+            <key>CFBundleVersion</key><string>1</string>
+            <key>CFBundleShortVersionString</key><string>1.0</string>
+            <key>UIRequiresFullScreen</key><true/><key>UILaunchStoryboardName</key><string></string>
+          </dict>
+          </plist>
+          PLIST
+          chmod +x build/ios/cute-pet.app/cute-pet
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ matrix.target }}
+          path: build/ios/cute-pet.app
+          if-no-files-found: warn
+
+  # ============ Web (WASM) ============
+  web:
+    name: Web (WASM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Build WASM
+        run: cargo build --target wasm32-unknown-unknown --profile release-wasm
+      - name: Collect web assets
+        run: |
+          mkdir -p build/web
+          cp target/wasm32-unknown-unknown/release-wasm/cute-pet.wasm build/web/app.wasm
+          cp -r assets build/web/assets 2>/dev/null || true
+          gzip -kf build/web/app.wasm 2>/dev/null || true
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-wasm
+          path: build/web/
+          if-no-files-found: warn
+
+  # ============ HarmonyOS (OpenHarmony, 原生) ============
+  # 参考 ohos-rs(https://ohos.rs/docs/ci/basic): 用官方 openharmony-rs/setup-ohos-sdk
+  # 自动下载装 OHOS SDK(无需登录, 有 cache), 结合 apt 装 clang + RUSTFLAGS 覆盖
+  # 本地 config 的死路径。clang 路径固定 /usr/bin(apt装), 避免 chron的路径猜测。
+  harmony:
+    name: HarmonyOS (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64-unknown-linux-ohos]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Setup OpenHarmony SDK
+        id: ohos
+        uses: openharmony-rs/setup-ohos-sdk@v1.0.1
+        with:
+          version: "6.1"
+
+      - name: Install clang/LLVM (system, fixed path)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm-dev lld
+
+      - name: Init OHOS CRT (crtbegin/end/unwind -> sysroot)
+        run: |
+          NATIVE="${{ steps.ohos.outputs.ohos_sdk_native }}"
+          SYSROOT="$NATIVE/sysroot"
+          DEST="$SYSROOT/usr/lib/aarch64-linux-ohos"
+          RTLIB=$(dirname "$(find "$NATIVE" -name clang_rt.crtbegin.o -path "*aarch64*" | head -1)")
+          cp "$RTLIB/clang_rt.crtbegin.o" "$DEST/crtbeginS.o"
+          cp "$RTLIB/clang_rt.crtend.o"   "$DEST/crtendS.o"
+          cp "$(find "$NATIVE" -name libunwind.a -path "*aarch64*" | head -1)" "$DEST/libunwind.a"
+          # 保存路径给下一步
+          echo "OHOS_SYSROOT=$SYSROOT" >> "$GITHUB_ENV"
+          echo "OHOS_LIBDIR=$DEST" >> "$GITHUB_ENV"
+
+      - name: Set ohos cross env (RUSTFLAGS + CC)
+        run: |
+          {
+            echo "CC_aarch64_unknown_linux_ohos=/usr/bin/clang"
+            echo "AR_aarch64_unknown_linux_ohos=/usr/bin/llvm-ar"
+            echo "CFLAGS_aarch64_unknown_linux_ohos=--target=aarch64-linux-ohos --sysroot=$OHOS_SYSROOT"
+            echo "RUSTFLAGS=-C link-arg=--target=aarch64-linux-ohos -C link-arg=--sysroot=$OHOS_SYSROOT -C link-arg=-L -C link-arg=$OHOS_LIBDIR"
+          } >> "$GITHUB_ENV"
+
+      - name: Build (native ELF)
+        run: cargo build --target ${{ matrix.target }} --release
+
+      - name: Upload native artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: harmony-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/cute-pet
+          if-no-files-found: warn

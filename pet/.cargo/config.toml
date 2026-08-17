@@ -1,0 +1,20 @@
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--import-undefined"]
+
+# HarmonyOS(OpenHarmony) 交叉编译 — 本机(Windows/scoop)配置。
+# cargo config 的 ${VAR} 只解析内置变量(CARGO_HOME 等), 不引用任意环境变量,
+# 故 sysroot 路径此处写死本地路径; CI 用 RUSTFLAGS 覆盖(见 workflow harmony job)。
+# 编译器 CC/AR/CFLAGS 由环境变量提供(必需):
+#   CC_aarch64_unknown_linux_ohos = D:/app/scoop/apps/llvm/current/bin/clang
+#   AR_aarch64_unknown_linux_ohos = D:/app/scoop/apps/llvm/current/bin/llvm-ar
+#   CFLAGS_aarch64_unknown_linux_ohos = --target=aarch64-linux-ohos --sysroot=<sysroot>
+# CRT/libunwind 已由 tools/init_ohos_rt.sh 复制进 sysroot。
+[target.aarch64-unknown-linux-ohos]
+linker = "clang"
+rustflags = [
+    "-C", "link-arg=--target=aarch64-linux-ohos",
+    "-C", "link-arg=--sysroot=D:/ohos-sdk/command-line-tools/sdk/default/openharmony/native/sysroot",
+    "-C", "link-arg=-L",
+    "-C", "link-arg=D:/ohos-sdk/command-line-tools/sdk/default/openharmony/native/sysroot/usr/lib/aarch64-linux-ohos",
+]
+
