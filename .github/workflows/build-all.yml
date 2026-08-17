@@ -24,6 +24,9 @@ jobs:
   android:
     name: Android (${{ matrix.abi }})
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pet
     strategy:
       fail-fast: false
       matrix:
@@ -62,6 +65,9 @@ jobs:
   windows:
     name: Windows (${{ matrix.target }})
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: pet
     strategy:
       fail-fast: false
       matrix:
@@ -85,6 +91,9 @@ jobs:
   linux:
     name: Linux (${{ matrix.target }})
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pet
     strategy:
       fail-fast: false
       matrix:
@@ -112,6 +121,9 @@ jobs:
   macos:
     name: macOS
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: pet
     strategy:
       fail-fast: false
       matrix:
@@ -137,6 +149,9 @@ jobs:
   ios:
     name: iOS (${{ matrix.target }})
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: pet
     strategy:
       fail-fast: false
       matrix:
@@ -179,6 +194,9 @@ jobs:
   web:
     name: Web (WASM)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pet
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -207,6 +225,9 @@ jobs:
   harmony:
     name: HarmonyOS (${{ matrix.target }})
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pet
     strategy:
       fail-fast: false
       matrix:
