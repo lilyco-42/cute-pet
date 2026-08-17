@@ -1,0 +1,78 @@
+name: Build with plyx
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: cargo test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-test-
+
+      - name: Run tests
+        run: cargo test
+
+  build-web:
+    name: plyx web (WASM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install plyx CLI
+        run: cargo install plyx
+
+      - name: Build with plyx web
+        run: plyx web
+
+      - name: Upload WASM bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: plyx-web
+          path: build/web/
+          if-no-files-found: warn
+
+  build-apk:
+    name: plyx apk (Android)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install plyx CLI
+        run: cargo install plyx
+
+      - name: Build with plyx apk (Docker)
+        run: plyx apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: plyx-apk
+          path: target/android-artifacts/release/apk/
+          if-no-files-found: warn
