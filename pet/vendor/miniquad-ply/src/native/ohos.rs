@@ -400,6 +400,24 @@ pub unsafe extern "C" fn ohos_char(ch: u32) {
     send_message(Message::Character { character: ch });
 }
 
+/// 特殊键(退格/回车/Tab 等): keycode 为鸿蒙 KeyCode 值(oh_key_code.h)。
+/// 普通字符走 ohos_char(unicode/keyText 映射)。
+#[no_mangle]
+pub unsafe extern "C" fn ohos_key(keycode: i32, down: bool) {
+    let kc = match keycode {
+        2049 => KeyCode::Tab,
+        2054 => KeyCode::Enter,
+        2055 => KeyCode::Backspace,
+        _ => return, // 其它键暂不转发(输入框只需这几个)
+    };
+    let msg = if down {
+        Message::KeyDown { keycode: kc }
+    } else {
+        Message::KeyUp { keycode: kc }
+    };
+    send_message(msg);
+}
+
 /// Pause/Resume: 宿主在页面 onHide/onShow 时调用。
 #[no_mangle]
 pub unsafe extern "C" fn ohos_pause() {

@@ -3,3 +3,7 @@ export const petStart: (surfaceId: bigint, width: number, height: number) => num
 export const petStop: () => number;
 export const petResize: (width: number, height: number) => number;
 export const petTouch: (x: number, y: number, touchId: number, down: boolean) => number;
+export const petChar: (ch: number) => number;
+export const petKey: (keycode: number, down: boolean) => number;
+export const petAttachIme: (uiContext: object) => number;
+export const petDetachIme: () => number;
