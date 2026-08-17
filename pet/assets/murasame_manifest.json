@@ -1,0 +1,3104 @@
+{
+ "character": "ムラサメ",
+ "name_cn": "丛雨",
+ "voice_code": "mur",
+ "canvas": [
+  1800,
+  2550
+ ],
+ "full_canvas": [
+  3600,
+  5100
+ ],
+ "sets": {
+  "a": {
+   "stand": {
+    "filename": "ムラサメa",
+    "xoffset": -18,
+    "yoffset": 150
+   },
+   "info": {
+    "dress": [
+     {
+      "dress": "裸",
+      "diff": 1,
+      "layer": "裸"
+     },
+     {
+      "dress": "裸",
+      "diff": 1,
+      "layer": "髪かぶせ"
+     },
+     {
+      "dress": "裸",
+      "diff": 2,
+      "layer": "裸腕差分"
+     },
+     {
+      "dress": "裸",
+      "diff": 2,
+      "layer": "髪かぶせ"
+     },
+     {
+      "dress": "私服",
+      "diff": 1,
+      "layer": "刀服"
+     },
+     {
+      "dress": "私服",
+      "diff": 1,
+      "layer": "髪かぶせ(刀服用)"
+     },
+     {
+      "dress": "私服",
+      "diff": 2,
+      "layer": "刀服腕差分"
+     },
+     {
+      "dress": "私服",
+      "diff": 2,
+      "layer": "髪かぶせ(刀服用)"
+     },
+     {
+      "dress": "制服",
+      "diff": 1,
+      "layer": "制服"
+     },
+     {
+      "dress": "制服",
+      "diff": 1,
+      "layer": "髪かぶせ"
+     },
+     {
+      "dress": "制服",
+      "diff": 2,
+      "layer": "制服腕差分"
+     },
+     {
+      "dress": "制服",
+      "diff": 2,
+      "layer": "髪かぶせ"
+     },
+     {
+      "dress": "洋装",
+      "diff": 1,
+      "layer": "私服"
+     },
+     {
+      "dress": "洋装",
+      "diff": 1,
+      "layer": "髪かぶせ"
+     },
+     {
+      "dress": "洋装",
+      "diff": 2,
+      "layer": "私服腕差分"
+     },
+     {
+      "dress": "洋装",
+      "diff": 2,
+      "layer": "髪かぶせ"
+     },
+     {
+      "dress": "寝間着",
+      "diff": 1,
+      "layer": "寝間着"
+     },
+     {
+      "dress": "寝間着",
+      "diff": 1,
+      "layer": "髪かぶせ"
+     },
+     {
+      "dress": "寝間着",
+      "diff": 2,
+      "layer": "寝間着腕差分"
+     },
+     {
+      "dress": "寝間着",
+      "diff": 2,
+      "layer": "髪かぶせ"
+     }
+    ],
+    "face": [
+     {
+      "face": "01",
+      "layer": "表情/ベース"
+     },
+     {
+      "face": "02",
+      "layer": "表情/笑顔1"
+     },
+     {
+      "face": "03",
+      "layer": "表情/きょとん"
+     },
+     {
+      "face": "04",
+      "layer": "表情/驚き"
+     },
+     {
+      "face": "05",
+      "layer": "表情/焦る"
+     },
+     {
+      "face": "06",
+      "layer": "表情/焦る2"
+     },
+     {
+      "face": "07",
+      "layer": "表情/照れ"
+     },
+     {
+      "face": "08",
+      "layer": "表情/照れる"
+     },
+     {
+      "face": "09",
+      "layer": "表情/照れる2"
+     },
+     {
+      "face": "10",
+      "layer": "表情/寂しい"
+     },
+     {
+      "face": "11",
+      "layer": "表情/真剣"
+     },
+     {
+      "face": "12",
+      "layer": "表情/考える"
+     },
+     {
+      "face": "13",
+      "layer": "表情/困った"
+     },
+     {
+      "face": "14",
+      "layer": "表情/怒り"
+     },
+     {
+      "face": "15",
+      "layer": "表情/にやにや"
+     },
+     {
+      "face": "16",
+      "layer": "表情/にやにや2"
+     },
+     {
+      "face": "17",
+      "layer": "表情/呆れ"
+     },
+     {
+      "face": "18",
+      "layer": "表情/訝しむ"
+     },
+     {
+      "face": "19",
+      "layer": "表情/子供っぽい"
+     },
+     {
+      "face": "20",
+      "layer": "表情/最大限に不満"
+     },
+     {
+      "face": "21",
+      "layer": "表情/最大限に不満げ"
+     },
+     {
+      "face": "22",
+      "layer": "表情/真面目な顔"
+     },
+     {
+      "face": "23",
+      "layer": "表情/恐怖"
+     },
+     {
+      "face": "24",
+      "layer": "表情/達観"
+     },
+     {
+      "face": "25",
+      "layer": "表情/えへへ"
+     },
+     {
+      "face": "26",
+      "layer": "表情/緊張"
+     },
+     {
+      "face": "27",
+      "layer": "表情（追加）/笑顔1bベースe笑顔1m"
+     },
+     {
+      "face": "28",
+      "layer": "表情（追加）/ベースb笑顔1eベースm"
+     },
+     {
+      "face": "29",
+      "layer": "表情（追加）/笑顔1b困ったeベースm"
+     },
+     {
+      "face": "30",
+      "layer": "表情（追加）/困ったb笑顔1e照れるm"
+     },
+     {
+      "face": "31",
+      "layer": "表情（追加）/困ったbベースeベースm"
+     },
+     {
+      "face": "32",
+      "layer": "表情（追加）/困ったb寂しいe照れるm"
+     },
+     {
+      "face": "33",
+      "layer": "表情（追加）/困ったb呆れe照れるm"
+     },
+     {
+      "face": "34",
+      "layer": "表情（追加）/真剣b寂しいe考えるm"
+     },
+     {
+      "face": "35",
+      "layer": "表情（追加）/寂しいb寂しいe照れる2m"
+     },
+     {
+      "face": "36",
+      "layer": "表情（追加）/困ったb照れる2e照れる2m"
+     },
+     {
+      "face": "37",
+      "layer": "表情（追加）/怒りb困ったe困ったm"
+     },
+     {
+      "face": "38",
+      "layer": "表情（追加）/きょとんb焦るe真剣m"
+     },
+     {
+      "face": "39",
+      "layer": "表情（追加）/訝しむbきょとんeきょとんm"
+     },
+     {
+      "face": "40",
+      "layer": "表情（追加）/ベースb困ったe真剣m"
+     },
+     {
+      "face": "01h",
+      "layer": "表情/ベース"
+     },
+     {
+      "face": "01h",
+      "layer": "頬"
+     },
+     {
+      "face": "02h",
+      "layer": "表情/笑顔1"
+     },
+     {
+      "face": "02h",
+      "layer": "頬"
+     },
+     {
+      "face": "03h",
+      "layer": "表情/きょとん"
+     },
+     {
+      "face": "03h",
+      "layer": "頬"
+     },
+     {
+      "face": "04h",
+      "layer": "表情/驚き"
+     },
+     {
+      "face": "04h",
+      "layer": "頬"
+     },
+     {
+      "face": "05h",
+      "layer": "表情/焦る"
+     },
+     {
+      "face": "05h",
+      "layer": "頬"
+     },
+     {
+      "face": "06h",
+      "layer": "表情/焦る2"
+     },
+     {
+      "face": "06h",
+      "layer": "頬"
+     },
+     {
+      "face": "07h",
+      "layer": "表情/照れ"
+     },
+     {
+      "face": "07h",
+      "layer": "頬"
+     },
+     {
+      "face": "08h",
+      "layer": "表情/照れる"
+     },
+     {
+      "face": "08h",
+      "layer": "頬"
+     },
+     {
+      "face": "09h",
+      "layer": "表情/照れる2"
+     },
+     {
+      "face": "09h",
+      "layer": "頬"
+     },
+     {
+      "face": "10h",
+      "layer": "表情/寂しい"
+     },
+     {
+      "face": "10h",
+      "layer": "頬"
+     },
+     {
+      "face": "11h",
+      "layer": "表情/真剣"
+     },
+     {
+      "face": "11h",
+      "layer": "頬"
+     },
+     {
+      "face": "12h",
+      "layer": "表情/考える"
+     },
+     {
+      "face": "12h",
+      "layer": "頬"
+     },
+     {
+      "face": "13h",
+      "layer": "表情/困った"
+     },
+     {
+      "face": "13h",
+      "layer": "頬"
+     },
+     {
+      "face": "14h",
+      "layer": "表情/怒り"
+     },
+     {
+      "face": "14h",
+      "layer": "頬"
+     },
+     {
+      "face": "15h",
+      "layer": "表情/にやにや"
+     },
+     {
+      "face": "15h",
+      "layer": "頬"
+     },
+     {
+      "face": "16h",
+      "layer": "表情/にやにや2"
+     },
+     {
+      "face": "16h",
+      "layer": "頬"
+     },
+     {
+      "face": "17h",
+      "layer": "表情/呆れ"
+     },
+     {
+      "face": "17h",
+      "layer": "頬"
+     },
+     {
+      "face": "18h",
+      "layer": "表情/訝しむ"
+     },
+     {
+      "face": "18h",
+      "layer": "頬"
+     },
+     {
+      "face": "19h",
+      "layer": "表情/子供っぽい"
+     },
+     {
+      "face": "19h",
+      "layer": "頬"
+     },
+     {
+      "face": "20h",
+      "layer": "表情/最大限に不満"
+     },
+     {
+      "face": "20h",
+      "layer": "頬"
+     },
+     {
+      "face": "21h",
+      "layer": "表情/最大限に不満げ"
+     },
+     {
+      "face": "21h",
+      "layer": "頬"
+     },
+     {
+      "face": "22h",
+      "layer": "表情/真面目な顔"
+     },
+     {
+      "face": "22h",
+      "layer": "頬"
+     },
+     {
+      "face": "23h",
+      "layer": "表情/恐怖"
+     },
+     {
+      "face": "23h",
+      "layer": "頬"
+     },
+     {
+      "face": "24h",
+      "layer": "表情/達観"
+     },
+     {
+      "face": "24h",
+      "layer": "頬"
+     },
+     {
+      "face": "25h",
+      "layer": "表情/えへへ"
+     },
+     {
+      "face": "25h",
+      "layer": "頬"
+     },
+     {
+      "face": "26h",
+      "layer": "表情/緊張"
+     },
+     {
+      "face": "26h",
+      "layer": "頬"
+     },
+     {
+      "face": "27h",
+      "layer": "表情（追加）/笑顔1bベースe笑顔1m"
+     },
+     {
+      "face": "27h",
+      "layer": "頬"
+     },
+     {
+      "face": "28h",
+      "layer": "表情（追加）/ベースb笑顔1eベースm"
+     },
+     {
+      "face": "28h",
+      "layer": "頬"
+     },
+     {
+      "face": "29h",
+      "layer": "表情（追加）/笑顔1b困ったeベースm"
+     },
+     {
+      "face": "29h",
+      "layer": "頬"
+     },
+     {
+      "face": "30h",
+      "layer": "表情（追加）/困ったb笑顔1e照れるm"
+     },
+     {
+      "face": "30h",
+      "layer": "頬"
+     },
+     {
+      "face": "31h",
+      "layer": "表情（追加）/困ったbベースeベースm"
+     },
+     {
+      "face": "31h",
+      "layer": "頬"
+     },
+     {
+      "face": "32h",
+      "layer": "表情（追加）/困ったb寂しいe照れるm"
+     },
+     {
+      "face": "32h",
+      "layer": "頬"
+     },
+     {
+      "face": "33h",
+      "layer": "表情（追加）/困ったb呆れe照れるm"
+     },
+     {
+      "face": "33h",
+      "layer": "頬"
+     },
+     {
+      "face": "34h",
+      "layer": "表情（追加）/真剣b寂しいe考えるm"
+     },
+     {
+      "face": "34h",
+      "layer": "頬"
+     },
+     {
+      "face": "35h",
+      "layer": "表情（追加）/寂しいb寂しいe照れる2m"
+     },
+     {
+      "face": "35h",
+      "layer": "頬"
+     },
+     {
+      "face": "36h",
+      "layer": "表情（追加）/困ったb照れる2e照れる2m"
+     },
+     {
+      "face": "36h",
+      "layer": "頬"
+     },
+     {
+      "face": "37h",
+      "layer": "表情（追加）/怒りb困ったe困ったm"
+     },
+     {
+      "face": "37h",
+      "layer": "頬"
+     },
+     {
+      "face": "38h",
+      "layer": "表情（追加）/きょとんb焦るe真剣m"
+     },
+     {
+      "face": "38h",
+      "layer": "頬"
+     },
+     {
+      "face": "39h",
+      "layer": "表情（追加）/訝しむbきょとんeきょとんm"
+     },
+     {
+      "face": "39h",
+      "layer": "頬"
+     },
+     {
+      "face": "40h",
+      "layer": "表情（追加）/ベースb困ったe真剣m"
+     },
+     {
+      "face": "40h",
+      "layer": "頬"
+     },
+     {
+      "face": "04n",
+      "layer": "表情(涙)/104 涙"
+     },
+     {
+      "face": "09n",
+      "layer": "表情(涙)/109h 涙"
+     },
+     {
+      "face": "10n",
+      "layer": "表情(涙)/110 涙"
+     },
+     {
+      "face": "13n",
+      "layer": "表情(涙)/113 涙"
+     },
+     {
+      "face": "29n",
+      "layer": "表情(涙)/129 涙"
+     },
+     {
+      "face": "30n",
+      "layer": "表情(涙)/130 涙"
+     },
+     {
+      "face": "31n",
+      "layer": "表情(涙)/131 涙"
+     },
+     {
+      "face": "33n",
+      "layer": "表情(涙)/133 涙"
+     },
+     {
+      "face": "35n",
+      "layer": "表情(涙)/135 涙"
+     },
+     {
+      "face": "36n",
+      "layer": "表情(涙)/136 涙"
+     },
+     {
+      "face": "38n",
+      "layer": "表情(涙)/138 涙"
+     },
+     {
+      "face": "04m",
+      "layer": "表情(涙)/104 涙"
+     },
+     {
+      "face": "04m",
+      "layer": "表情(涙)/頬"
+     },
+     {
+      "face": "09m",
+      "layer": "表情(涙)/109h 涙"
+     },
+     {
+      "face": "09m",
+      "layer": "表情(涙)/頬"
+     },
+     {
+      "face": "10m",
+      "layer": "表情(涙)/110 涙"
+     },
+     {
+      "face": "10m",
+      "layer": "表情(涙)/頬"
+     },
+     {
+      "face": "13m",
+      "layer": "表情(涙)/113 涙"
+     },
+     {
+      "face": "13m",
+      "layer": "表情(涙)/頬"
+     },
+     {
+      "face": "29m",
+      "layer": "表情(涙)/129 涙"
+     },
+     {
+      "face": "29m",
+      "layer": "表情(涙)/頬"
+     },
+     {
+      "face": "30m",
+      "layer": "表情(涙)/130 涙"
+     },
+     {
+      "face": "30m",
+      "layer": "表情(涙)/頬"
+     },
+     {
+      "face": "31m",
+      "layer": "表情(涙)/131 涙"
+     },
+     {
+      "face": "31m",
+      "layer": "表情(涙)/頬"
+     },
+     {
+      "face": "33m",
+      "layer": "表情(涙)/133 涙"
+     },
+     {
+      "face": "33m",
+      "layer": "表情(涙)/頬"
+     },
+     {
+      "face": "35m",
+      "layer": "表情(涙)/135 涙"
+     },
+     {
+      "face": "35m",
+      "layer": "表情(涙)/頬"
+     },
+     {
+      "face": "36m",
+      "layer": "表情(涙)/136 涙"
+     },
+     {
+      "face": "36m",
+      "layer": "表情(涙)/頬"
+     },
+     {
+      "face": "38m",
+      "layer": "表情(涙)/138 涙"
+     },
+     {
+      "face": "38m",
+      "layer": "表情(涙)/頬"
+     }
+    ]
+   },
+   "composition": {
+    "items": {
+     "1958": {
+      "layer_type": 0,
+      "name": "頬",
+      "left": 852,
+      "top": 1059,
+      "w": 136,
+      "h": 92,
+      "img_type": 16,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1958,
+      "group": 0
+     },
+     "1940": {
+      "layer_type": 0,
+      "name": "息（呆れ）",
+      "left": 814,
+      "top": 1165,
+      "w": 28,
+      "h": 27,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1940,
+      "group": 0
+     },
+     "1273": {
+      "layer_type": 0,
+      "name": "髪かぶせ(刀服用)",
+      "left": 834,
+      "top": 1025,
+      "w": 176,
+      "h": 84,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1273,
+      "group": 0
+     },
+     "1959": {
+      "layer_type": 0,
+      "name": "髪かぶせ",
+      "left": 834,
+      "top": 1035,
+      "w": 174,
+      "h": 74,
+      "img_type": 13,
+      "opacity": 217,
+      "visible": 0,
+      "layer_id": 1959,
+      "group": 0
+     },
+     "1996": {
+      "layer_type": 0,
+      "name": "138 涙",
+      "left": 838,
+      "top": 1010,
+      "w": 166,
+      "h": 130,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1996,
+      "group": 1984
+     },
+     "1995": {
+      "layer_type": 0,
+      "name": "136 涙",
+      "left": 842,
+      "top": 1021,
+      "w": 162,
+      "h": 120,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1995,
+      "group": 1984
+     },
+     "1994": {
+      "layer_type": 0,
+      "name": "135 涙",
+      "left": 839,
+      "top": 1017,
+      "w": 162,
+      "h": 124,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1994,
+      "group": 1984
+     },
+     "1993": {
+      "layer_type": 0,
+      "name": "133 涙",
+      "left": 842,
+      "top": 1021,
+      "w": 153,
+      "h": 122,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1993,
+      "group": 1984
+     },
+     "1992": {
+      "layer_type": 0,
+      "name": "131 涙",
+      "left": 840,
+      "top": 1021,
+      "w": 167,
+      "h": 120,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1992,
+      "group": 1984
+     },
+     "1991": {
+      "layer_type": 0,
+      "name": "130 涙",
+      "left": 842,
+      "top": 1021,
+      "w": 159,
+      "h": 122,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1991,
+      "group": 1984
+     },
+     "2009": {
+      "layer_type": 0,
+      "name": "129 涙",
+      "left": 836,
+      "top": 1014,
+      "w": 164,
+      "h": 127,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 2009,
+      "group": 1984
+     },
+     "1989": {
+      "layer_type": 0,
+      "name": "113 涙",
+      "left": 842,
+      "top": 1021,
+      "w": 158,
+      "h": 121,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1989,
+      "group": 1984
+     },
+     "1988": {
+      "layer_type": 0,
+      "name": "110 涙",
+      "left": 839,
+      "top": 1017,
+      "w": 162,
+      "h": 126,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1988,
+      "group": 1984
+     },
+     "1987": {
+      "layer_type": 0,
+      "name": "109h 涙",
+      "left": 841,
+      "top": 1018,
+      "w": 163,
+      "h": 123,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1987,
+      "group": 1984
+     },
+     "1986": {
+      "layer_type": 0,
+      "name": "104 涙",
+      "left": 837,
+      "top": 1006,
+      "w": 166,
+      "h": 137,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 1,
+      "layer_id": 1986,
+      "group": 1984
+     },
+     "1990": {
+      "layer_type": 0,
+      "name": "頬",
+      "left": 852,
+      "top": 1059,
+      "w": 136,
+      "h": 92,
+      "img_type": 16,
+      "opacity": 255,
+      "visible": 1,
+      "layer_id": 1990,
+      "group": 1984
+     },
+     "1976": {
+      "layer_type": 0,
+      "name": "ベースb困ったe真剣m",
+      "left": 837,
+      "top": 1010,
+      "w": 161,
+      "h": 130,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1976,
+      "group": 1977
+     },
+     "1975": {
+      "layer_type": 0,
+      "name": "訝しむbきょとんeきょとんm",
+      "left": 837,
+      "top": 1011,
+      "w": 170,
+      "h": 131,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1975,
+      "group": 1977
+     },
+     "1974": {
+      "layer_type": 0,
+      "name": "きょとんb焦るe真剣m",
+      "left": 838,
+      "top": 1010,
+      "w": 166,
+      "h": 130,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1974,
+      "group": 1977
+     },
+     "1973": {
+      "layer_type": 0,
+      "name": "怒りb困ったe困ったm",
+      "left": 842,
+      "top": 1014,
+      "w": 156,
+      "h": 128,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1973,
+      "group": 1977
+     },
+     "1972": {
+      "layer_type": 0,
+      "name": "困ったb照れる2e照れる2m",
+      "left": 842,
+      "top": 1021,
+      "w": 162,
+      "h": 120,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1972,
+      "group": 1977
+     },
+     "1971": {
+      "layer_type": 0,
+      "name": "寂しいb寂しいe照れる2m",
+      "left": 839,
+      "top": 1017,
+      "w": 162,
+      "h": 124,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1971,
+      "group": 1977
+     },
+     "1970": {
+      "layer_type": 0,
+      "name": "真剣b寂しいe考えるm",
+      "left": 840,
+      "top": 1012,
+      "w": 161,
+      "h": 128,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1970,
+      "group": 1977
+     },
+     "1969": {
+      "layer_type": 0,
+      "name": "困ったb呆れe照れるm",
+      "left": 842,
+      "top": 1021,
+      "w": 153,
+      "h": 122,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1969,
+      "group": 1977
+     },
+     "1968": {
+      "layer_type": 0,
+      "name": "困ったb寂しいe照れるm",
+      "left": 842,
+      "top": 1021,
+      "w": 159,
+      "h": 122,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1968,
+      "group": 1977
+     },
+     "1967": {
+      "layer_type": 0,
+      "name": "困ったbベースeベースm",
+      "left": 840,
+      "top": 1021,
+      "w": 167,
+      "h": 120,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1967,
+      "group": 1977
+     },
+     "1966": {
+      "layer_type": 0,
+      "name": "困ったb笑顔1e照れるm",
+      "left": 842,
+      "top": 1021,
+      "w": 159,
+      "h": 122,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1966,
+      "group": 1977
+     },
+     "1965": {
+      "layer_type": 0,
+      "name": "笑顔1b困ったeベースm",
+      "left": 836,
+      "top": 1014,
+      "w": 162,
+      "h": 127,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1965,
+      "group": 1977
+     },
+     "1964": {
+      "layer_type": 0,
+      "name": "ベースb笑顔1eベースm",
+      "left": 837,
+      "top": 1010,
+      "w": 164,
+      "h": 131,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1964,
+      "group": 1977
+     },
+     "1963": {
+      "layer_type": 0,
+      "name": "笑顔1bベースe笑顔1m",
+      "left": 836,
+      "top": 1014,
+      "w": 171,
+      "h": 134,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1963,
+      "group": 1977
+     },
+     "1935": {
+      "layer_type": 0,
+      "name": "緊張",
+      "left": 842,
+      "top": 1017,
+      "w": 164,
+      "h": 124,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1935,
+      "group": 1941
+     },
+     "1904": {
+      "layer_type": 0,
+      "name": "えへへ",
+      "left": 843,
+      "top": 1014,
+      "w": 156,
+      "h": 133,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1904,
+      "group": 1941
+     },
+     "1880": {
+      "layer_type": 0,
+      "name": "達観",
+      "left": 838,
+      "top": 1014,
+      "w": 165,
+      "h": 128,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1880,
+      "group": 1941
+     },
+     "1856": {
+      "layer_type": 0,
+      "name": "恐怖",
+      "left": 822,
+      "top": 965,
+      "w": 179,
+      "h": 186,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1856,
+      "group": 1941
+     },
+     "1822": {
+      "layer_type": 0,
+      "name": "真面目な顔",
+      "left": 840,
+      "top": 1013,
+      "w": 167,
+      "h": 131,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1822,
+      "group": 1941
+     },
+     "1801": {
+      "layer_type": 0,
+      "name": "最大限に不満げ",
+      "left": 842,
+      "top": 981,
+      "w": 159,
+      "h": 167,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1801,
+      "group": 1941
+     },
+     "1768": {
+      "layer_type": 0,
+      "name": "最大限に不満",
+      "left": 842,
+      "top": 981,
+      "w": 160,
+      "h": 167,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1768,
+      "group": 1941
+     },
+     "1738": {
+      "layer_type": 0,
+      "name": "子供っぽい",
+      "left": 838,
+      "top": 1016,
+      "w": 164,
+      "h": 135,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1738,
+      "group": 1941
+     },
+     "1714": {
+      "layer_type": 0,
+      "name": "訝しむ",
+      "left": 837,
+      "top": 1011,
+      "w": 164,
+      "h": 133,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1714,
+      "group": 1941
+     },
+     "1690": {
+      "layer_type": 0,
+      "name": "呆れ",
+      "left": 840,
+      "top": 1014,
+      "w": 155,
+      "h": 134,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1690,
+      "group": 1941
+     },
+     "1668": {
+      "layer_type": 0,
+      "name": "にやにや2",
+      "left": 838,
+      "top": 1019,
+      "w": 166,
+      "h": 119,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1668,
+      "group": 1941
+     },
+     "1644": {
+      "layer_type": 0,
+      "name": "にやにや",
+      "left": 838,
+      "top": 1019,
+      "w": 166,
+      "h": 126,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1644,
+      "group": 1941
+     },
+     "1620": {
+      "layer_type": 0,
+      "name": "怒り",
+      "left": 842,
+      "top": 1014,
+      "w": 162,
+      "h": 127,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1620,
+      "group": 1941
+     },
+     "1596": {
+      "layer_type": 0,
+      "name": "困った",
+      "left": 842,
+      "top": 1021,
+      "w": 156,
+      "h": 121,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1596,
+      "group": 1941
+     },
+     "1572": {
+      "layer_type": 0,
+      "name": "考える",
+      "left": 836,
+      "top": 1013,
+      "w": 168,
+      "h": 127,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1572,
+      "group": 1941
+     },
+     "1548": {
+      "layer_type": 0,
+      "name": "真剣",
+      "left": 840,
+      "top": 1012,
+      "w": 167,
+      "h": 128,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1548,
+      "group": 1941
+     },
+     "1528": {
+      "layer_type": 0,
+      "name": "寂しい",
+      "left": 839,
+      "top": 1017,
+      "w": 162,
+      "h": 126,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1528,
+      "group": 1941
+     },
+     "1504": {
+      "layer_type": 0,
+      "name": "照れる2",
+      "left": 841,
+      "top": 1018,
+      "w": 163,
+      "h": 123,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1504,
+      "group": 1941
+     },
+     "1480": {
+      "layer_type": 0,
+      "name": "照れる",
+      "left": 841,
+      "top": 1018,
+      "w": 163,
+      "h": 124,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1480,
+      "group": 1941
+     },
+     "1455": {
+      "layer_type": 0,
+      "name": "照れ",
+      "left": 841,
+      "top": 1018,
+      "w": 161,
+      "h": 125,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1455,
+      "group": 1941
+     },
+     "1430": {
+      "layer_type": 0,
+      "name": "焦る2",
+      "left": 841,
+      "top": 1010,
+      "w": 163,
+      "h": 142,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1430,
+      "group": 1941
+     },
+     "1399": {
+      "layer_type": 0,
+      "name": "焦る",
+      "left": 841,
+      "top": 1008,
+      "w": 163,
+      "h": 144,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1399,
+      "group": 1941
+     },
+     "1368": {
+      "layer_type": 0,
+      "name": "驚き",
+      "left": 837,
+      "top": 1006,
+      "w": 166,
+      "h": 137,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 1,
+      "layer_id": 1368,
+      "group": 1941
+     },
+     "1337": {
+      "layer_type": 0,
+      "name": "きょとん",
+      "left": 838,
+      "top": 1010,
+      "w": 169,
+      "h": 132,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1337,
+      "group": 1941
+     },
+     "1316": {
+      "layer_type": 0,
+      "name": "笑顔1",
+      "left": 836,
+      "top": 1014,
+      "w": 165,
+      "h": 134,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1316,
+      "group": 1941
+     },
+     "1292": {
+      "layer_type": 0,
+      "name": "ベース",
+      "left": 837,
+      "top": 1010,
+      "w": 170,
+      "h": 131,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1292,
+      "group": 1941
+     },
+     "1957": {
+      "layer_type": 0,
+      "name": "寝間着腕差分",
+      "left": 549,
+      "top": 880,
+      "w": 797,
+      "h": 1445,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1957,
+      "group": 0
+     },
+     "1956": {
+      "layer_type": 0,
+      "name": "寝間着",
+      "left": 549,
+      "top": 880,
+      "w": 797,
+      "h": 1445,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1956,
+      "group": 0
+     },
+     "1979": {
+      "layer_type": 0,
+      "name": "私服腕差分",
+      "left": 696,
+      "top": 869,
+      "w": 620,
+      "h": 1466,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1979,
+      "group": 0
+     },
+     "1978": {
+      "layer_type": 0,
+      "name": "私服",
+      "left": 696,
+      "top": 869,
+      "w": 620,
+      "h": 1466,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1978,
+      "group": 0
+     },
+     "1953": {
+      "layer_type": 0,
+      "name": "制服腕差分",
+      "left": 529,
+      "top": 880,
+      "w": 642,
+      "h": 1454,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1953,
+      "group": 0
+     },
+     "1952": {
+      "layer_type": 0,
+      "name": "制服",
+      "left": 529,
+      "top": 880,
+      "w": 696,
+      "h": 1454,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1952,
+      "group": 0
+     },
+     "1951": {
+      "layer_type": 0,
+      "name": "刀服腕差分",
+      "left": 549,
+      "top": 880,
+      "w": 797,
+      "h": 1458,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1951,
+      "group": 0
+     },
+     "1950": {
+      "layer_type": 0,
+      "name": "刀服",
+      "left": 549,
+      "top": 880,
+      "w": 797,
+      "h": 1458,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1950,
+      "group": 0
+     },
+     "1949": {
+      "layer_type": 0,
+      "name": "裸腕差分",
+      "left": 549,
+      "top": 880,
+      "w": 797,
+      "h": 1445,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1949,
+      "group": 0
+     },
+     "1948": {
+      "layer_type": 0,
+      "name": "裸",
+      "left": 549,
+      "top": 880,
+      "w": 797,
+      "h": 1445,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1948,
+      "group": 0
+     }
+    },
+    "groups": {
+     "表情(涙)": 1984,
+     "表情（追加）": 1977,
+     "表情": 1941
+    }
+   },
+   "layer_count": 66
+  },
+  "b": {
+   "stand": {
+    "filename": "ムラサメb",
+    "xoffset": -24,
+    "yoffset": 150
+   },
+   "info": {
+    "dress": [
+     {
+      "dress": "裸",
+      "diff": 3,
+      "layer": "裸"
+     },
+     {
+      "dress": "裸",
+      "diff": 3,
+      "layer": "かぶせ"
+     },
+     {
+      "dress": "私服",
+      "diff": 3,
+      "layer": "刀服"
+     },
+     {
+      "dress": "私服",
+      "diff": 3,
+      "layer": "かぶせ"
+     },
+     {
+      "dress": "制服",
+      "diff": 3,
+      "layer": "制服"
+     },
+     {
+      "dress": "制服",
+      "diff": 3,
+      "layer": "かぶせ"
+     },
+     {
+      "dress": "洋装",
+      "diff": 3,
+      "layer": "私服"
+     },
+     {
+      "dress": "洋装",
+      "diff": 3,
+      "layer": "かぶせ"
+     },
+     {
+      "dress": "寝間着",
+      "diff": 3,
+      "layer": "寝間着"
+     },
+     {
+      "dress": "寝間着",
+      "diff": 3,
+      "layer": "かぶせ"
+     }
+    ],
+    "face": [
+     {
+      "face": "01",
+      "layer": "表情/ベース"
+     },
+     {
+      "face": "02",
+      "layer": "表情/笑顔2"
+     },
+     {
+      "face": "03",
+      "layer": "表情/微笑み"
+     },
+     {
+      "face": "04",
+      "layer": "表情/驚き"
+     },
+     {
+      "face": "05",
+      "layer": "表情/恥ずかしい"
+     },
+     {
+      "face": "06",
+      "layer": "表情/悲しい"
+     },
+     {
+      "face": "07",
+      "layer": "表情/ジト目"
+     },
+     {
+      "face": "08",
+      "layer": "表情/拗ねる"
+     },
+     {
+      "face": "09",
+      "layer": "表情/目を見開き驚く"
+     },
+     {
+      "face": "10",
+      "layer": "表情/真剣"
+     },
+     {
+      "face": "11",
+      "layer": "表情/ぐぬぬ"
+     },
+     {
+      "face": "11",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "12",
+      "layer": "表情/ぐぬぬ2"
+     },
+     {
+      "face": "12",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "13",
+      "layer": "表情/上目使い"
+     },
+     {
+      "face": "14",
+      "layer": "表情/怒り叫び"
+     },
+     {
+      "face": "15",
+      "layer": "表情/キシャー"
+     },
+     {
+      "face": "15",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "16",
+      "layer": "表情/真面目な顔2"
+     },
+     {
+      "face": "17",
+      "layer": "表情/達観"
+     },
+     {
+      "face": "18",
+      "layer": "表情（追加）/ベースb笑顔2eベースm"
+     },
+     {
+      "face": "19",
+      "layer": "表情（追加）/笑顔2bベースe微笑みm"
+     },
+     {
+      "face": "20",
+      "layer": "表情（追加）/ベースb悲しいeベースm"
+     },
+     {
+      "face": "21",
+      "layer": "表情（追加）/笑顔2bジト目eベースm"
+     },
+     {
+      "face": "22",
+      "layer": "表情（追加）/悲しいb笑顔2e微笑みm"
+     },
+     {
+      "face": "23",
+      "layer": "表情（追加）/悲しいbベースeベースm"
+     },
+     {
+      "face": "24",
+      "layer": "表情（追加）/驚きbベースe上目使いm"
+     },
+     {
+      "face": "25",
+      "layer": "表情（追加）/悲しいb恥ずかしいe真剣m"
+     },
+     {
+      "face": "26",
+      "layer": "表情（追加）/悲しいb拗ねるe上目使いm"
+     },
+     {
+      "face": "27",
+      "layer": "表情（追加）/怒り叫びb悲しいe真剣m"
+     },
+     {
+      "face": "28",
+      "layer": "表情（追加）/怒り叫びb真剣e驚きm"
+     },
+     {
+      "face": "29",
+      "layer": "表情（追加）/拗ねるb怒り叫びeジト目m"
+     },
+     {
+      "face": "30",
+      "layer": "表情（追加）/悲しいb悲しいe恥ずかしいm"
+     },
+     {
+      "face": "01h",
+      "layer": "表情/ベース"
+     },
+     {
+      "face": "01h",
+      "layer": "頬"
+     },
+     {
+      "face": "02h",
+      "layer": "表情/笑顔2"
+     },
+     {
+      "face": "02h",
+      "layer": "頬"
+     },
+     {
+      "face": "03h",
+      "layer": "表情/微笑み"
+     },
+     {
+      "face": "03h",
+      "layer": "頬"
+     },
+     {
+      "face": "04h",
+      "layer": "表情/驚き"
+     },
+     {
+      "face": "04h",
+      "layer": "頬"
+     },
+     {
+      "face": "05h",
+      "layer": "表情/恥ずかしい"
+     },
+     {
+      "face": "05h",
+      "layer": "頬"
+     },
+     {
+      "face": "06h",
+      "layer": "表情/悲しい"
+     },
+     {
+      "face": "06h",
+      "layer": "頬"
+     },
+     {
+      "face": "07h",
+      "layer": "表情/ジト目"
+     },
+     {
+      "face": "07h",
+      "layer": "頬"
+     },
+     {
+      "face": "08h",
+      "layer": "表情/拗ねる"
+     },
+     {
+      "face": "08h",
+      "layer": "頬"
+     },
+     {
+      "face": "09h",
+      "layer": "表情/目を見開き驚く"
+     },
+     {
+      "face": "09h",
+      "layer": "頬"
+     },
+     {
+      "face": "10h",
+      "layer": "表情/真剣"
+     },
+     {
+      "face": "10h",
+      "layer": "頬"
+     },
+     {
+      "face": "11h",
+      "layer": "表情/ぐぬぬ"
+     },
+     {
+      "face": "11h",
+      "layer": "頬"
+     },
+     {
+      "face": "11h",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "12h",
+      "layer": "表情/ぐぬぬ2"
+     },
+     {
+      "face": "12h",
+      "layer": "頬"
+     },
+     {
+      "face": "12h",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "13h",
+      "layer": "表情/上目使い"
+     },
+     {
+      "face": "13h",
+      "layer": "頬"
+     },
+     {
+      "face": "14h",
+      "layer": "表情/怒り叫び"
+     },
+     {
+      "face": "14h",
+      "layer": "頬"
+     },
+     {
+      "face": "15h",
+      "layer": "表情/キシャー"
+     },
+     {
+      "face": "15h",
+      "layer": "頬"
+     },
+     {
+      "face": "15h",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "16h",
+      "layer": "表情/真面目な顔2"
+     },
+     {
+      "face": "16h",
+      "layer": "頬"
+     },
+     {
+      "face": "17h",
+      "layer": "表情/達観"
+     },
+     {
+      "face": "17h",
+      "layer": "頬"
+     },
+     {
+      "face": "18h",
+      "layer": "表情（追加）/ベースb笑顔2eベースm"
+     },
+     {
+      "face": "18h",
+      "layer": "頬"
+     },
+     {
+      "face": "19h",
+      "layer": "表情（追加）/笑顔2bベースe微笑みm"
+     },
+     {
+      "face": "19h",
+      "layer": "頬"
+     },
+     {
+      "face": "20h",
+      "layer": "表情（追加）/ベースb悲しいeベースm"
+     },
+     {
+      "face": "20h",
+      "layer": "頬"
+     },
+     {
+      "face": "21h",
+      "layer": "表情（追加）/笑顔2bジト目eベースm"
+     },
+     {
+      "face": "21h",
+      "layer": "頬"
+     },
+     {
+      "face": "22h",
+      "layer": "表情（追加）/悲しいb笑顔2e微笑みm"
+     },
+     {
+      "face": "22h",
+      "layer": "頬"
+     },
+     {
+      "face": "23h",
+      "layer": "表情（追加）/悲しいbベースeベースm"
+     },
+     {
+      "face": "23h",
+      "layer": "頬"
+     },
+     {
+      "face": "24h",
+      "layer": "表情（追加）/驚きbベースe上目使いm"
+     },
+     {
+      "face": "24h",
+      "layer": "頬"
+     },
+     {
+      "face": "25h",
+      "layer": "表情（追加）/悲しいb恥ずかしいe真剣m"
+     },
+     {
+      "face": "25h",
+      "layer": "頬"
+     },
+     {
+      "face": "26h",
+      "layer": "表情（追加）/悲しいb拗ねるe上目使いm"
+     },
+     {
+      "face": "26h",
+      "layer": "頬"
+     },
+     {
+      "face": "27h",
+      "layer": "表情（追加）/怒り叫びb悲しいe真剣m"
+     },
+     {
+      "face": "27h",
+      "layer": "頬"
+     },
+     {
+      "face": "28h",
+      "layer": "表情（追加）/怒り叫びb真剣e驚きm"
+     },
+     {
+      "face": "28h",
+      "layer": "頬"
+     },
+     {
+      "face": "29h",
+      "layer": "表情（追加）/拗ねるb怒り叫びeジト目m"
+     },
+     {
+      "face": "29h",
+      "layer": "頬"
+     },
+     {
+      "face": "30h",
+      "layer": "表情（追加）/悲しいb悲しいe恥ずかしいm"
+     },
+     {
+      "face": "30h",
+      "layer": "頬"
+     },
+     {
+      "face": "01d",
+      "layer": "表情/ベース"
+     },
+     {
+      "face": "01d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "02d",
+      "layer": "表情/笑顔2"
+     },
+     {
+      "face": "02d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "03d",
+      "layer": "表情/微笑み"
+     },
+     {
+      "face": "03d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "04d",
+      "layer": "表情/驚き"
+     },
+     {
+      "face": "04d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "05d",
+      "layer": "表情/恥ずかしい"
+     },
+     {
+      "face": "05d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "06d",
+      "layer": "表情/悲しい"
+     },
+     {
+      "face": "06d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "07d",
+      "layer": "表情/ジト目"
+     },
+     {
+      "face": "07d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "08d",
+      "layer": "表情/拗ねる"
+     },
+     {
+      "face": "08d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "09d",
+      "layer": "表情/目を見開き驚く"
+     },
+     {
+      "face": "09d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "10d",
+      "layer": "表情/真剣"
+     },
+     {
+      "face": "10d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "11d",
+      "layer": "表情/ぐぬぬ"
+     },
+     {
+      "face": "11d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "12d",
+      "layer": "表情/ぐぬぬ2"
+     },
+     {
+      "face": "12d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "13d",
+      "layer": "表情/上目使い"
+     },
+     {
+      "face": "13d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "14d",
+      "layer": "表情/怒り叫び"
+     },
+     {
+      "face": "14d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "15d",
+      "layer": "表情/キシャー"
+     },
+     {
+      "face": "15d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "16d",
+      "layer": "表情/真面目な顔2"
+     },
+     {
+      "face": "16d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "17d",
+      "layer": "表情/達観"
+     },
+     {
+      "face": "17d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "18d",
+      "layer": "表情（追加）/ベースb笑顔2eベースm"
+     },
+     {
+      "face": "18d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "19d",
+      "layer": "表情（追加）/笑顔2bベースe微笑みm"
+     },
+     {
+      "face": "19d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "20d",
+      "layer": "表情（追加）/ベースb悲しいeベースm"
+     },
+     {
+      "face": "20d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "21d",
+      "layer": "表情（追加）/笑顔2bジト目eベースm"
+     },
+     {
+      "face": "21d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "22d",
+      "layer": "表情（追加）/悲しいb笑顔2e微笑みm"
+     },
+     {
+      "face": "22d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "23d",
+      "layer": "表情（追加）/悲しいbベースeベースm"
+     },
+     {
+      "face": "23d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "24d",
+      "layer": "表情（追加）/驚きbベースe上目使いm"
+     },
+     {
+      "face": "24d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "25d",
+      "layer": "表情（追加）/悲しいb恥ずかしいe真剣m"
+     },
+     {
+      "face": "25d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "26d",
+      "layer": "表情（追加）/悲しいb拗ねるe上目使いm"
+     },
+     {
+      "face": "26d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "27d",
+      "layer": "表情（追加）/怒り叫びb悲しいe真剣m"
+     },
+     {
+      "face": "27d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "28d",
+      "layer": "表情（追加）/怒り叫びb真剣e驚きm"
+     },
+     {
+      "face": "28d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "29d",
+      "layer": "表情（追加）/拗ねるb怒り叫びeジト目m"
+     },
+     {
+      "face": "29d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "30d",
+      "layer": "表情（追加）/悲しいb悲しいe恥ずかしいm"
+     },
+     {
+      "face": "30d",
+      "layer": "ぐぬぬ／ぐぬぬ2／キシャー用"
+     },
+     {
+      "face": "03n",
+      "layer": "表情（涙）/303 涙"
+     },
+     {
+      "face": "06n",
+      "layer": "表情（涙）/306 涙"
+     },
+     {
+      "face": "09n",
+      "layer": "表情（涙）/309 涙"
+     },
+     {
+      "face": "20n",
+      "layer": "表情（涙）/320 涙"
+     },
+     {
+      "face": "22n",
+      "layer": "表情（涙）/322 涙"
+     },
+     {
+      "face": "23n",
+      "layer": "表情（涙）/323 涙"
+     },
+     {
+      "face": "25n",
+      "layer": "表情（涙）/325 涙"
+     },
+     {
+      "face": "26n",
+      "layer": "表情（涙）/326 涙"
+     },
+     {
+      "face": "27n",
+      "layer": "表情（涙）/327 涙"
+     },
+     {
+      "face": "28n",
+      "layer": "表情（涙）/328 涙"
+     },
+     {
+      "face": "30n",
+      "layer": "表情（涙）/330 涙"
+     },
+     {
+      "face": "06t",
+      "layer": "表情（涙）/306 涙大"
+     },
+     {
+      "face": "03m",
+      "layer": "表情（涙）/303 涙"
+     },
+     {
+      "face": "03m",
+      "layer": "表情（涙）/頬"
+     },
+     {
+      "face": "06m",
+      "layer": "表情（涙）/306 涙"
+     },
+     {
+      "face": "06m",
+      "layer": "表情（涙）/頬"
+     },
+     {
+      "face": "09m",
+      "layer": "表情（涙）/309 涙"
+     },
+     {
+      "face": "09m",
+      "layer": "表情（涙）/頬"
+     },
+     {
+      "face": "20m",
+      "layer": "表情（涙）/320 涙"
+     },
+     {
+      "face": "20m",
+      "layer": "表情（涙）/頬"
+     },
+     {
+      "face": "22m",
+      "layer": "表情（涙）/322 涙"
+     },
+     {
+      "face": "22m",
+      "layer": "表情（涙）/頬"
+     },
+     {
+      "face": "23m",
+      "layer": "表情（涙）/323 涙"
+     },
+     {
+      "face": "23m",
+      "layer": "表情（涙）/頬"
+     },
+     {
+      "face": "25m",
+      "layer": "表情（涙）/325 涙"
+     },
+     {
+      "face": "25m",
+      "layer": "表情（涙）/頬"
+     },
+     {
+      "face": "26m",
+      "layer": "表情（涙）/326 涙"
+     },
+     {
+      "face": "26m",
+      "layer": "表情（涙）/頬"
+     },
+     {
+      "face": "27m",
+      "layer": "表情（涙）/327 涙"
+     },
+     {
+      "face": "27m",
+      "layer": "表情（涙）/頬"
+     },
+     {
+      "face": "28m",
+      "layer": "表情（涙）/328 涙"
+     },
+     {
+      "face": "28m",
+      "layer": "表情（涙）/頬"
+     },
+     {
+      "face": "30m",
+      "layer": "表情（涙）/330 涙"
+     },
+     {
+      "face": "30m",
+      "layer": "表情（涙）/頬"
+     }
+    ]
+   },
+   "composition": {
+    "items": {
+     "1719": {
+      "layer_type": 0,
+      "name": "頬",
+      "left": 856,
+      "top": 1069,
+      "w": 155,
+      "h": 82,
+      "img_type": 16,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1719,
+      "group": 0
+     },
+     "1261": {
+      "layer_type": 0,
+      "name": "かぶせ",
+      "left": 821,
+      "top": 1026,
+      "w": 214,
+      "h": 76,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 1,
+      "layer_id": 1261,
+      "group": 0
+     },
+     "1708": {
+      "layer_type": 0,
+      "name": "ぐぬぬ／ぐぬぬ2／キシャー用",
+      "left": 851,
+      "top": 977,
+      "w": 161,
+      "h": 136,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1708,
+      "group": 0
+     },
+     "1755": {
+      "layer_type": 0,
+      "name": "330 涙",
+      "left": 853,
+      "top": 1007,
+      "w": 159,
+      "h": 133,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 1,
+      "layer_id": 1755,
+      "group": 1743
+     },
+     "1754": {
+      "layer_type": 0,
+      "name": "328 涙",
+      "left": 845,
+      "top": 1017,
+      "w": 175,
+      "h": 165,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1754,
+      "group": 1743
+     },
+     "1753": {
+      "layer_type": 0,
+      "name": "327 涙",
+      "left": 856,
+      "top": 1017,
+      "w": 156,
+      "h": 119,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1753,
+      "group": 1743
+     },
+     "1752": {
+      "layer_type": 0,
+      "name": "326 涙",
+      "left": 846,
+      "top": 1007,
+      "w": 173,
+      "h": 131,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1752,
+      "group": 1743
+     },
+     "1751": {
+      "layer_type": 0,
+      "name": "325 涙",
+      "left": 850,
+      "top": 1007,
+      "w": 163,
+      "h": 129,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1751,
+      "group": 1743
+     },
+     "1750": {
+      "layer_type": 0,
+      "name": "323 涙",
+      "left": 845,
+      "top": 1007,
+      "w": 175,
+      "h": 128,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1750,
+      "group": 1743
+     },
+     "1749": {
+      "layer_type": 0,
+      "name": "322 涙",
+      "left": 853,
+      "top": 1007,
+      "w": 161,
+      "h": 133,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1749,
+      "group": 1743
+     },
+     "1748": {
+      "layer_type": 0,
+      "name": "320 涙",
+      "left": 852,
+      "top": 1014,
+      "w": 163,
+      "h": 121,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1748,
+      "group": 1743
+     },
+     "1747": {
+      "layer_type": 0,
+      "name": "309 涙",
+      "left": 846,
+      "top": 1013,
+      "w": 174,
+      "h": 135,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1747,
+      "group": 1743
+     },
+     "1787": {
+      "layer_type": 0,
+      "name": "306 涙大",
+      "left": 853,
+      "top": 979,
+      "w": 153,
+      "h": 188,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1787,
+      "group": 1743
+     },
+     "1765": {
+      "layer_type": 0,
+      "name": "306 涙",
+      "left": 853,
+      "top": 1007,
+      "w": 159,
+      "h": 133,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1765,
+      "group": 1743
+     },
+     "1745": {
+      "layer_type": 0,
+      "name": "303 涙",
+      "left": 849,
+      "top": 1019,
+      "w": 167,
+      "h": 121,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1745,
+      "group": 1743
+     },
+     "1757": {
+      "layer_type": 0,
+      "name": "頬",
+      "left": 856,
+      "top": 1069,
+      "w": 155,
+      "h": 82,
+      "img_type": 16,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1757,
+      "group": 1743
+     },
+     "1733": {
+      "layer_type": 0,
+      "name": "悲しいb悲しいe恥ずかしいm",
+      "left": 853,
+      "top": 1007,
+      "w": 153,
+      "h": 133,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1733,
+      "group": 1734
+     },
+     "1732": {
+      "layer_type": 0,
+      "name": "拗ねるb怒り叫びeジト目m",
+      "left": 847,
+      "top": 1018,
+      "w": 172,
+      "h": 122,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1732,
+      "group": 1734
+     },
+     "1731": {
+      "layer_type": 0,
+      "name": "怒り叫びb真剣e驚きm",
+      "left": 845,
+      "top": 1017,
+      "w": 175,
+      "h": 165,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1731,
+      "group": 1734
+     },
+     "1730": {
+      "layer_type": 0,
+      "name": "怒り叫びb悲しいe真剣m",
+      "left": 857,
+      "top": 1017,
+      "w": 151,
+      "h": 119,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1730,
+      "group": 1734
+     },
+     "1729": {
+      "layer_type": 0,
+      "name": "悲しいb拗ねるe上目使いm",
+      "left": 846,
+      "top": 1007,
+      "w": 173,
+      "h": 131,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1729,
+      "group": 1734
+     },
+     "1728": {
+      "layer_type": 0,
+      "name": "悲しいb恥ずかしいe真剣m",
+      "left": 850,
+      "top": 1007,
+      "w": 163,
+      "h": 129,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1728,
+      "group": 1734
+     },
+     "1727": {
+      "layer_type": 0,
+      "name": "驚きbベースe上目使いm",
+      "left": 845,
+      "top": 1011,
+      "w": 175,
+      "h": 127,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1727,
+      "group": 1734
+     },
+     "1726": {
+      "layer_type": 0,
+      "name": "悲しいbベースeベースm",
+      "left": 845,
+      "top": 1007,
+      "w": 175,
+      "h": 128,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1726,
+      "group": 1734
+     },
+     "1725": {
+      "layer_type": 0,
+      "name": "悲しいb笑顔2e微笑みm",
+      "left": 853,
+      "top": 1007,
+      "w": 155,
+      "h": 133,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1725,
+      "group": 1734
+     },
+     "1724": {
+      "layer_type": 0,
+      "name": "笑顔2bジト目eベースm",
+      "left": 850,
+      "top": 1020,
+      "w": 165,
+      "h": 115,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1724,
+      "group": 1734
+     },
+     "1723": {
+      "layer_type": 0,
+      "name": "ベースb悲しいeベースm",
+      "left": 852,
+      "top": 1014,
+      "w": 163,
+      "h": 121,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1723,
+      "group": 1734
+     },
+     "1722": {
+      "layer_type": 0,
+      "name": "笑顔2bベースe微笑みm",
+      "left": 845,
+      "top": 1020,
+      "w": 175,
+      "h": 120,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1722,
+      "group": 1734
+     },
+     "1721": {
+      "layer_type": 0,
+      "name": "ベースb笑顔2eベースm",
+      "left": 852,
+      "top": 1014,
+      "w": 163,
+      "h": 121,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1721,
+      "group": 1734
+     },
+     "1704": {
+      "layer_type": 0,
+      "name": "達観",
+      "left": 848,
+      "top": 1020,
+      "w": 171,
+      "h": 121,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1704,
+      "group": 1705
+     },
+     "1681": {
+      "layer_type": 0,
+      "name": "真面目な顔2",
+      "left": 845,
+      "top": 1018,
+      "w": 175,
+      "h": 164,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1681,
+      "group": 1705
+     },
+     "1710": {
+      "layer_type": 0,
+      "name": "キシャー",
+      "left": 862,
+      "top": 1016,
+      "w": 139,
+      "h": 138,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1710,
+      "group": 1705
+     },
+     "1641": {
+      "layer_type": 0,
+      "name": "怒り叫び",
+      "left": 847,
+      "top": 1017,
+      "w": 172,
+      "h": 139,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1641,
+      "group": 1705
+     },
+     "1616": {
+      "layer_type": 0,
+      "name": "上目使い",
+      "left": 847,
+      "top": 1012,
+      "w": 171,
+      "h": 126,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1616,
+      "group": 1705
+     },
+     "1712": {
+      "layer_type": 0,
+      "name": "ぐぬぬ2",
+      "left": 852,
+      "top": 1024,
+      "w": 160,
+      "h": 118,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1712,
+      "group": 1705
+     },
+     "1711": {
+      "layer_type": 0,
+      "name": "ぐぬぬ",
+      "left": 852,
+      "top": 1024,
+      "w": 161,
+      "h": 118,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1711,
+      "group": 1705
+     },
+     "1524": {
+      "layer_type": 0,
+      "name": "真剣",
+      "left": 845,
+      "top": 1021,
+      "w": 175,
+      "h": 161,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1524,
+      "group": 1705
+     },
+     "1505": {
+      "layer_type": 0,
+      "name": "目を見開き驚く",
+      "left": 846,
+      "top": 1013,
+      "w": 174,
+      "h": 135,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1505,
+      "group": 1705
+     },
+     "1475": {
+      "layer_type": 0,
+      "name": "拗ねる",
+      "left": 846,
+      "top": 1018,
+      "w": 173,
+      "h": 123,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1475,
+      "group": 1705
+     },
+     "1452": {
+      "layer_type": 0,
+      "name": "ジト目",
+      "left": 852,
+      "top": 1027,
+      "w": 163,
+      "h": 113,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1452,
+      "group": 1705
+     },
+     "1429": {
+      "layer_type": 0,
+      "name": "悲しい",
+      "left": 853,
+      "top": 1007,
+      "w": 153,
+      "h": 133,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 1,
+      "layer_id": 1429,
+      "group": 1705
+     },
+     "1406": {
+      "layer_type": 0,
+      "name": "恥ずかしい",
+      "left": 850,
+      "top": 1014,
+      "w": 163,
+      "h": 126,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1406,
+      "group": 1705
+     },
+     "1376": {
+      "layer_type": 0,
+      "name": "驚き",
+      "left": 845,
+      "top": 1011,
+      "w": 174,
+      "h": 130,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1376,
+      "group": 1705
+     },
+     "1352": {
+      "layer_type": 0,
+      "name": "微笑み",
+      "left": 849,
+      "top": 1019,
+      "w": 167,
+      "h": 121,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1352,
+      "group": 1705
+     },
+     "1329": {
+      "layer_type": 0,
+      "name": "笑顔2",
+      "left": 850,
+      "top": 1020,
+      "w": 161,
+      "h": 128,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1329,
+      "group": 1705
+     },
+     "1306": {
+      "layer_type": 0,
+      "name": "ベース",
+      "left": 845,
+      "top": 1014,
+      "w": 175,
+      "h": 121,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1306,
+      "group": 1705
+     },
+     "1718": {
+      "layer_type": 0,
+      "name": "寝間着",
+      "left": 521,
+      "top": 880,
+      "w": 778,
+      "h": 1443,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1718,
+      "group": 0
+     },
+     "1717": {
+      "layer_type": 0,
+      "name": "私服",
+      "left": 626,
+      "top": 872,
+      "w": 629,
+      "h": 1463,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1717,
+      "group": 0
+     },
+     "1716": {
+      "layer_type": 0,
+      "name": "制服",
+      "left": 714,
+      "top": 880,
+      "w": 635,
+      "h": 1457,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 0,
+      "layer_id": 1716,
+      "group": 0
+     },
+     "1715": {
+      "layer_type": 0,
+      "name": "刀服",
+      "left": 521,
+      "top": 880,
+      "w": 778,
+      "h": 1451,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 1,
+      "layer_id": 1715,
+      "group": 0
+     },
+     "1714": {
+      "layer_type": 0,
+      "name": "裸",
+      "left": 521,
+      "top": 880,
+      "w": 778,
+      "h": 1443,
+      "img_type": 13,
+      "opacity": 255,
+      "visible": 1,
+      "layer_id": 1714,
+      "group": 0
+     }
+    },
+    "groups": {
+     "表情（涙）": 1743,
+     "表情（追加）": 1734,
+     "表情": 1705
+    }
+   },
+   "layer_count": 51
+  }
+ }
+}
