@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "cute-pet 宿主壳"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "丛雨桌宠"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "丛雨"
+    }
+  ]
+}

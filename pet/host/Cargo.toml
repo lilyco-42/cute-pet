@@ -1,0 +1,28 @@
+[package]
+name = "cute-pet-host"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# 鸿蒙宿主壳静态库: include pet/src/main.rs, 导出 pet_entry() 启动渲染线程。
+# ArkTS XComponent + C++ NAPI 壳链接本库(见 ../host_napi/ 与 docs)。
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+anyhow = "1.0.104"
+demo = { path = "../../lazy-ply" }
+ply-engine = { version = "1.1", default-features = false, features = ["built-in-shaders", "audio"] }
+rust-embed = "8.12.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# chat/chatlog 共用模块(桌宠 lib)
+cute-pet = { path = ".." }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = { version = "3.4.0", features = ["json"] }
+
+# 与 pet 一致: 本地 vendored miniquad-ply(ohos backend) + quad-snd(ohos 音频桩)
+[patch.crates-io]
+miniquad-ply = { path = "../vendor/miniquad-ply" }
+quad-snd = { path = "../vendor/quad-snd" }

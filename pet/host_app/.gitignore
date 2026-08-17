@@ -1,0 +1,13 @@
+# hvigor / ohpm 构建产物
+/build/
+/oh_modules/
+/entry/build/
+/entry/.cxx/
+/entry/oh_modules/
+/.hvigor/
+/.appanalyzer/
+/local.properties
+# Rust 静态库产物(本地编译)
+/entry/src/main/libs/
+# 日志
+*.log

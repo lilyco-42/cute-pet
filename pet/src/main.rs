@@ -1177,3 +1177,15 @@ async fn main() {
         next_frame().await;
     }
 }
+
+// ---------------- 鸿蒙宿主壳入口(staticlib) ----------------
+// 同一 main.rs 同时作为 [lib] cute_pet_host 编译(crate-type=["staticlib"])。
+// 宿主(ArkTS XComponent + C++ NAPI)加载 .so 后调 pet_entry() 启动渲染线程:
+//   pet_entry() → main()(macroquad 宏生成, 即 Window::from_config)
+//   → miniquad-ply::window::start → native::ohos::run → spawn 渲染线程(忙等 surface)
+//   → 返回; 宿主随后把 XComponent surface 经 NAPI 调 ohos_surface_created() 喂给渲染线程。
+#[cfg(target_env = "ohos")]
+#[no_mangle]
+pub extern "C" fn pet_entry() {
+    main();
+}

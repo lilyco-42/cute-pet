@@ -1,0 +1,13 @@
+{
+  "modelVersion": "6.1.1",
+  "name": "cute_pet_host_app",
+  "version": "1.0.0",
+  "description": "cute-pet 桌宠鸿蒙原生宿主壳(ArkTS XComponent + C++ NAPI -> Rust)",
+  "main": "",
+  "author": "",
+  "license": "",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.19"
+  }
+}
