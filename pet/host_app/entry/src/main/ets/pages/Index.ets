@@ -57,6 +57,18 @@ struct Index {
       })
         .width('100%')
         .layoutWeight(1)
+        .onTouch((event: TouchEvent) => {
+          // 单指触摸 → NAPI petTouch → Rust ohos backend → macroquad 鼠标事件。
+          // 只转发 Down/Up(Move 在 ohos backend 无对应相位, 忽略避免误判)
+          const t = event.touches[0];
+          if (t) {
+            if (event.type === TouchType.Down) {
+              native.petTouch(t.x, t.y, t.id, true);
+            } else if (event.type === TouchType.Up) {
+              native.petTouch(t.x, t.y, t.id, false);
+            }
+          }
+        })
     }
     .width('100%')
     .height('100%')

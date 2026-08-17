@@ -22,10 +22,10 @@ mod linux;
 
 const MANIFEST_PATH: &str = "murasame_manifest.json";
 const LAYER_DIR: &str = "murasame_layers";
-// 缩放: 桌面 1/3(600x850 窗口), 移动端放大填满屏幕
-#[cfg(target_os = "android")]
+// 缩放: 桌面 1/3(600x850 窗口), 移动端/鸿蒙放大填满屏幕
+#[cfg(any(target_os = "android", target_env = "ohos"))]
 const SCALE: f32 = 0.6;
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_env = "ohos")))]
 const SCALE: f32 = 1.0 / 3.0;
 
 /// 跨平台资产: 编译期嵌入二进制(rust-embed), 所有平台统一, 无运行时路径问题。
@@ -190,7 +190,7 @@ pub const LLM_HINT_TEXT: &str = "AI 对话: 免费模型 → NVIDIA NIM · OpenR
 const LLM_HINT_URL: &str = "https://github.com/lazy-plxy/cute-pet/blob/main/docs/free-llm.md";
 
 /// 打开 LLM 免费模型渠道说明页(桌面: 系统默认浏览器; WASM: JS 拦截 OPENURL 前缀)。
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_env = "ohos")))]
 fn open_llm_hint_page() {
     #[cfg(target_arch = "wasm32")]
     {
@@ -208,10 +208,10 @@ fn open_llm_hint_page() {
     }
 }
 
-/// Android 桩(系统意图打开浏览器, 简化: 无操作, 避免未用警告)。
-#[cfg(target_os = "android")]
+/// Android/HarmonyOS 桩(系统意图打开浏览器, 简化: 无操作, 避免未用警告)。
+#[cfg(any(target_os = "android", target_env = "ohos"))]
 fn open_llm_hint_page() {
-    // TODO: Android 用 Intent ACTION_VIEW 打开; 暂不实现(桌面/WASM 为主)
+    // TODO: Android/鸿蒙 用系统意图打开浏览器; 暂不实现(桌面/WASM 为主)
 }
 
 
@@ -366,7 +366,7 @@ fn draw_volume_indicator(volume: f32) {
 /// 角色头顶的台词气泡: 半透明黑底白字 + 小三角尾巴指向角色。
 /// 字号/内边距随 ui_scale 缩放(Android 2.7x), 长文本自动换行。
 fn draw_speech_bubble(text: &str, font: &macroquad::text::Font, cx: f32, char_top: f32) {
-    let ui_scale = if cfg!(target_os = "android") {
+    let ui_scale = if cfg!(any(target_os = "android", target_env = "ohos")) {
         (screen_width() / 400.0).clamp(1.0, 3.5)
     } else {
         1.0
@@ -680,8 +680,8 @@ async fn main() {
         let now = macroquad::time::get_time() as f32;
         // 透明背景: alpha=0, 由 DWM 合成到桌面
         clear_background(MacroquadColor::new(0.0, 0.0, 0.0, 0.0));
-        // Android 和风背景(不透明窗口, lazy-ply 组件); 桌面透明窗口不画
-        #[cfg(target_os = "android")]
+        // Android/鸿蒙 和风背景(不透明窗口, lazy-ply 组件); 桌面透明窗口不画
+        #[cfg(any(target_os = "android", target_env = "ohos"))]
         demo::components::pet_background(now, screen_width(), screen_height());
 
         // 主音量调节(桌宠页面内): 桌面 `-`/`=` 或 `[`/`]`, Android 触摸屏两侧
@@ -705,7 +705,7 @@ async fn main() {
         if is_mouse_button_released(MouseButton::Left) && now - click_since > 0.4 {
             click_since = now;
             let (mx, my) = mouse_position();
-            #[cfg(target_os = "android")]
+            #[cfg(any(target_os = "android", target_env = "ohos"))]
             {
                 // 上半屏左右边缘 → 音量
                 let edge = screen_width() * 0.04;
@@ -739,7 +739,7 @@ async fn main() {
                     }
                 }
             }
-            #[cfg(not(target_os = "android"))]
+            #[cfg(not(any(target_os = "android", target_env = "ohos")))]
             {
                 // 点击立绘中部(避开顶部气泡区与底部聊天控件区) → 轮播台词 + 切表情
                 let ui_scale_click = 1.0;
@@ -824,9 +824,9 @@ async fn main() {
             break;
         }
 
-        // 播放回复语音(ffmpeg m4a→wav → 加载 → 播放; 仅桌面 — Android 无 ffmpeg, 走 TTS/兜底)
+        // 播放回复语音(ffmpeg m4a→wav → 加载 → 播放; 仅桌面 — Android/鸿蒙无 ffmpeg, 走 TTS/兜底)
         if let Some(v) = pending_voice.take() {
-            #[cfg(not(target_os = "android"))]
+            #[cfg(not(any(target_os = "android", target_env = "ohos")))]
             {
                 let src = format!("../assets/pet/murasame/corpus/voice/{v}.ogg");
                 if let Ok(out) = std::process::Command::new("ffmpeg")
@@ -841,7 +841,7 @@ async fn main() {
                     }
                 }
             }
-            #[cfg(target_os = "android")]
+            #[cfg(any(target_os = "android", target_env = "ohos"))]
             let _ = v;
         }
         // 播放远程 TTS 合成的丛雨克隆音色; 失败立即播放内嵌兜底语音(点击/回复必有声音)
@@ -948,10 +948,10 @@ async fn main() {
         }
 
         // 聊天面板(lazy-ply 组件): 气泡历史 + 快捷问题 + 输入框, 覆盖在立绘上方
-        #[cfg(target_os = "android")]
+        #[cfg(any(target_os = "android", target_env = "ohos"))]
         {
-            // Android: miniquad dpi_scale 可能返回 1.0(按物理像素渲染), 用设计宽度 400dp
-            // 推算 UI 缩放, 统一放大按钮/输入框/气泡文字到可触控尺寸
+            // Android/HarmonyOS: miniquad dpi_scale 可能返回 1.0(按物理像素渲染),
+            // 用设计宽度 400dp 推算 UI 缩放, 统一放大按钮/输入框/气泡文字到可触控尺寸
             use demo::components::config::{Attrs, ButtonConfig, ButtonStateConfig, ChatPanelConfig, Style, TextFieldConfig};
             let ui_scale = (screen_width() / 400.0).clamp(1.0, 3.5);
             let mut ui = ply.begin();
@@ -990,7 +990,7 @@ async fn main() {
             );
             ui.show(|_| {}).await;
         }
-        #[cfg(not(target_os = "android"))]
+        #[cfg(not(any(target_os = "android", target_env = "ohos")))]
         {
             // 桌面/WASM: 浅色和风背景上的高对比样式(深紫按钮/白底输入框/不透明气泡)
             use demo::components::config::{Attrs, ButtonConfig, ButtonStateConfig, ChatPanelConfig, Style, TextFieldConfig};
@@ -1142,15 +1142,15 @@ async fn main() {
             };
             chat_state.history.push(ChatMessage::pet(&text));
             last_reply = text.clone();
-            // 语料语音: 桌面 ffmpeg 播放; Android 无 ffmpeg 丢弃走 TTS
+            // 语料语音: 桌面 ffmpeg 播放; Android/鸿蒙无 ffmpeg 丢弃走 TTS
             let mut want_tts = true;
             if let Some(v) = voice {
-                #[cfg(not(target_os = "android"))]
+                #[cfg(not(any(target_os = "android", target_env = "ohos")))]
                 {
                     pending_voice = Some(v);
                     want_tts = false; // 桌面已有语料原声, 不再重复合成
                 }
-                #[cfg(target_os = "android")]
+                #[cfg(any(target_os = "android", target_env = "ohos"))]
                 let _ = v;
             }
             if want_tts {
