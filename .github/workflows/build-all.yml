@@ -119,6 +119,10 @@ jobs:
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo dpkg --add-architecture arm64
+          # GitHub runner 的 host 源(azure/security) 不提供 arm64 Packages,
+          # 限制 host 源只拉 amd64, 另加 ports.ubuntu.com 的 arm64 源
+          sudo sed -i 's/^Types: deb/Types: deb\nArchitectures: amd64/' /etc/apt/sources.list.d/ubuntu.sources
+          printf 'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble main universe multiverse restricted\ndeb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main universe multiverse restricted\ndeb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-security main universe multiverse restricted\n' | sudo tee /etc/apt/sources.list.d/arm64-cross.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu \
@@ -149,8 +153,9 @@ jobs:
       matrix:
         target: [aarch64-apple-darwin, x86_64-apple-darwin]
     env:
-      # _objc_msgSend_ret 需要 macOS 13+ SDK; 默认 deployment target 11.0 不含此符号
-      MACOSX_DEPLOYMENT_TARGET: "13.0"
+      # _objc_msgSend_ret 是 macOS 14 (Xcode 15) SDK 新增的 objc 运行时符号,
+      # deployment target < 14 时链接器拒绝
+      MACOSX_DEPLOYMENT_TARGET: "14.0"
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -279,9 +284,10 @@ jobs:
           SYSROOT="$NATIVE/sysroot"
           DEST="$SYSROOT/usr/lib/aarch64-linux-ohos"
           RTLIB=$(dirname "$(find "$NATIVE" -name clang_rt.crtbegin.o -path "*aarch64*" | head -1)")
-          cp "$RTLIB/clang_rt.crtbegin.o" "$DEST/crtbeginS.o"
-          cp "$RTLIB/clang_rt.crtend.o"   "$DEST/crtendS.o"
-          cp "$(find "$NATIVE" -name libunwind.a -path "*aarch64*" | head -1)" "$DEST/libunwind.a"
+          # 幂等: SDK 新版本可能自带部分 CRT 文件, 已存在则跳过
+          [ -f "$DEST/crtbeginS.o" ] || cp "$RTLIB/clang_rt.crtbegin.o" "$DEST/crtbeginS.o"
+          [ -f "$DEST/crtendS.o" ]   || cp "$RTLIB/clang_rt.crtend.o"   "$DEST/crtendS.o"
+          [ -f "$DEST/libunwind.a" ] || cp "$(find "$NATIVE" -name libunwind.a -path "*aarch64*" | head -1)" "$DEST/libunwind.a"
           # 保存路径给下一步
           echo "OHOS_SYSROOT=$SYSROOT" >> "$GITHUB_ENV"
           echo "OHOS_LIBDIR=$DEST" >> "$GITHUB_ENV"
