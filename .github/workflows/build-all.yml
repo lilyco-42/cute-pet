@@ -39,6 +39,15 @@ jobs:
             target: x86_64-linux-android
     steps:
       - uses: actions/checkout@v4
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -79,6 +88,23 @@ jobs:
         target: [x86_64-pc-windows-msvc, aarch64-pc-windows-msvc]
     steps:
       - uses: actions/checkout@v4
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}
+      - name: Cache cargo target
+        uses: actions/cache@v4
+        with:
+          path: pet/target
+          key: target-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            target-${{ runner.os }}-${{ matrix.target }}
+            target-${{ runner.os }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -89,7 +115,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/cute-pet.exe
+          path: pet/target/${{ matrix.target }}/release/cute-pet.exe
           if-no-files-found: warn
 
   # ============ Linux ============
@@ -105,6 +131,23 @@ jobs:
         target: [x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu]
     steps:
       - uses: actions/checkout@v4
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}
+      - name: Cache cargo target
+        uses: actions/cache@v4
+        with:
+          path: pet/target
+          key: target-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            target-${{ runner.os }}-${{ matrix.target }}
+            target-${{ runner.os }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -138,7 +181,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/cute-pet
+          path: pet/target/${{ matrix.target }}/release/cute-pet
           if-no-files-found: warn
 
   # ============ macOS ============
@@ -158,6 +201,23 @@ jobs:
       MACOSX_DEPLOYMENT_TARGET: "14.0"
     steps:
       - uses: actions/checkout@v4
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}
+      - name: Cache cargo target
+        uses: actions/cache@v4
+        with:
+          path: pet/target
+          key: target-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            target-${{ runner.os }}-${{ matrix.target }}
+            target-${{ runner.os }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -169,8 +229,8 @@ jobs:
         with:
           name: macos-${{ matrix.target }}
           path: |
-            target/${{ matrix.target }}/release/cute-pet
-            target/${{ matrix.target }}/release/cute-pet.app
+            pet/target/${{ matrix.target }}/release/cute-pet
+            pet/target/${{ matrix.target }}/release/cute-pet.app
           if-no-files-found: warn
 
   # ============ iOS ============
@@ -186,6 +246,23 @@ jobs:
         target: [aarch64-apple-ios, aarch64-apple-ios-sim]
     steps:
       - uses: actions/checkout@v4
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}
+      - name: Cache cargo target
+        uses: actions/cache@v4
+        with:
+          path: pet/target
+          key: target-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            target-${{ runner.os }}-${{ matrix.target }}
+            target-${{ runner.os }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -215,7 +292,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ios-${{ matrix.target }}
-          path: build/ios/cute-pet.app
+          path: pet/build/ios/cute-pet.app
           if-no-files-found: warn
 
   # ============ Web (WASM) ============
@@ -227,6 +304,23 @@ jobs:
         working-directory: pet
     steps:
       - uses: actions/checkout@v4
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}
+      - name: Cache cargo target (wasm)
+        uses: actions/cache@v4
+        with:
+          path: pet/target
+          key: target-${{ runner.os }}-wasm32-unknown-unknown-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            target-${{ runner.os }}-wasm32-unknown-unknown
+            target-${{ runner.os }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -243,7 +337,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: web-wasm
-          path: build/web/
+          path: pet/build/web/
           if-no-files-found: warn
 
   # ============ HarmonyOS (OpenHarmony, 原生) ============
@@ -262,6 +356,23 @@ jobs:
         target: [aarch64-unknown-linux-ohos]
     steps:
       - uses: actions/checkout@v4
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}
+      - name: Cache cargo target
+        uses: actions/cache@v4
+        with:
+          path: pet/target
+          key: target-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            target-${{ runner.os }}-${{ matrix.target }}
+            target-${{ runner.os }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -308,5 +419,53 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: harmony-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/cute-pet
+          path: pet/target/${{ matrix.target }}/release/cute-pet
           if-no-files-found: warn
+
+  # ============ 发布: 全部构建成功后自动打 tag + GitHub Release ============
+  release:
+    name: Publish GitHub Release
+    needs: [android, windows, linux, macos, ios, web, harmony]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Create tag & release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          VERSION=$(grep -m1 '^version' pet/Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::Release $TAG already exists, skipping"
+            exit 0
+          fi
+          # 每个 artifact 目录打包成 zip(避免同名文件冲突, 平台隔离)
+          mkdir -p release_assets
+          for d in dist/*/; do
+            [ -d "$d" ] || continue
+            name=$(basename "$d")
+            (cd "$d" && zip -qr "$GITHUB_WORKSPACE/release_assets/${name}.zip" .) || true
+          done
+          ls -la release_assets
+          {
+            echo "## 支持的平台"
+            echo "- Android: arm64-v8a / armeabi-v7a / x86_64 (APK)"
+            echo "- Windows: x86_64 / arm64"
+            echo "- Linux: x86_64 / aarch64"
+            echo "- macOS: arm64 / x86_64"
+            echo "- iOS: device / simulator (.app)"
+            echo "- Web: WASM"
+            echo "- HarmonyOS: aarch64 (ELF)"
+          } > notes.md
+          gh release create "$TAG" release_assets/*.zip \
+            --title "cute-pet v${VERSION}" \
+            --notes-file notes.md \
+            --target "$GITHUB_SHA"
