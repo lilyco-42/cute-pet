@@ -1,0 +1,36 @@
+# Build artifacts
+pet/target/
+pet/build/
+pet/dev/
+lyco_chat/target/
+lazy-ply/target/
+platform_check/target/
+lyco-engine/**/target/
+lazy-ply/node_modules/
+
+# Large / binary assets
+apk/
+assets/xp3_apk/
+assets/pet/murasame/corpus/voice/
+murasame_sovits_data.tar.gz
+*.wav
+*.apk
+*.wasm
+*.pdb
+*.rlib
+*.ogg
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Local scripts output
+*.log
+
+# HarmonyOS / temp CI artifacts (source committed only)
+ohos-sdk/
+pet/vendor/*/target/
+pet/release_pkg/
+tmp_rd_ci.yml
+.agents/state/sessions/
+# 忽略 vendor 内嵌 workflow
