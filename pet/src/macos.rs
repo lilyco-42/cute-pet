@@ -13,10 +13,8 @@ const NS_FLOATING_WINDOW_LEVEL: isize = 3; // NSNormalWindowLevel=0, NSFloatingW
 extern "C" {
     fn objc_getClass(name: *const c_char) -> *mut c_void;
     fn sel_registerName(name: *const c_char) -> *mut c_void;
-    // 变长 objc_msgSend: 指针返回
+    // 变长 objc_msgSend: 标量/指针返回走同一返回寄存器, 调用处 cast 即可
     fn objc_msgSend(obj: *mut c_void, sel: *mut c_void, ...) -> *mut c_void;
-    // 返回 isize(如 styleMask)
-    fn objc_msgSend_ret(obj: *mut c_void, sel: *mut c_void, ...) -> isize;
 }
 
 fn sel(name: &str) -> *mut c_void {
@@ -50,7 +48,7 @@ pub fn make_transparent_pet_window() {
         let clear = objc_msgSend(cls("NSColor"), sel("clearColor"));
         objc_msgSend(window, sel("setBackgroundColor:"), clear);
         // 去标题栏: styleMask &= ~Titled (NSUInteger → u64 vararg)
-        let mask = objc_msgSend_ret(window, sel("styleMask"));
+        let mask = objc_msgSend(window, sel("styleMask")) as isize;
         objc_msgSend(window, sel("setStyleMask:"), (mask & !(1isize << 0)) as u64);
         // 浮动层级(置顶): NSInteger → isize vararg
         objc_msgSend(window, sel("setLevel:"), NS_FLOATING_WINDOW_LEVEL as isize);
