@@ -1,5 +1,6 @@
 import native from 'libcute_pet_host.so';
 import { display } from '@kit.ArkUI';
+import { common } from '@kit.AbilityKit';
 
 // 触摸坐标: onTouch 给 vp(虚拟像素), Rust 画布需要物理 px → 乘 densityPixels
 function vp2px(v: number): number {
@@ -9,6 +10,8 @@ function vp2px(v: number): number {
 // XComponent 控制器: surface 生命周期回调 → NAPI → Rust ohos backend
 class PetXComponentController extends XComponentController {
   onStatus: (msg: string) => void = () => {};
+  currentW: number = 1256; // 当前 surface 尺寸(键盘避让后变化)
+  currentH: number = 2526;
   onSurfaceCreated(surfaceId: string): void {
     this.onStatus(`created id=${surfaceId}`);
     try {
@@ -21,6 +24,8 @@ class PetXComponentController extends XComponentController {
 
   onSurfaceChanged(surfaceId: string, rect: SurfaceRect): void {
     this.onStatus(`changed ${rect.surfaceWidth}x${rect.surfaceHeight}`);
+    this.currentW = rect.surfaceWidth;
+    this.currentH = rect.surfaceHeight;
     try {
       native.petResize(rect.surfaceWidth, rect.surfaceHeight);
     } catch (e) {
@@ -42,6 +47,8 @@ class PetXComponentController extends XComponentController {
 @Component
 struct Index {
   @State status: string = 'init';
+  // 键盘弹出时 XComponent 高度避让(真实缩放 surface, EGL surface 跟随 native window)
+  @State kbHeight: number = 0;
   private controller: PetXComponentController = new PetXComponentController();
   private lastTouchY: number = -1;
   private lastTouchX: number = -1;
@@ -51,11 +58,34 @@ struct Index {
       this.status = msg;
       console.info(`CutePetStatus: ${msg}`);
     };
+    // 监听软键盘高度变化(单位 vp) → 缩放 XComponent 让输入框可见
+    try {
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const win = ctx?.windowStage?.getMainWindowSync();
+      if (win) {
+        win.on('keyboardHeightChange', (h: number) => {
+          // keyboardHeightChange 单位 px → 传 Rust 布局避让(聊天面板上移)
+          console.info(`CutePetKb: px=${h}`);
+          this.kbHeight = h;
+          try {
+            native.petKeyboard(h);
+          } catch (e) {
+            console.info(`CutePetKb: petKeyboard ERR ${JSON.stringify(e)}`);
+          }
+        });
+      }
+    } catch (e) {
+      console.info(`CutePetKb: listener ERR ${JSON.stringify(e)}`);
+    }
   }
 
-  // 点击是否落在 Rust 聊天输入框区域(底部 ~22% 内, 横向 8%-78%)
+  // 点击是否落在 Rust 聊天输入框区域。
+  // 键盘弹出时 Rust 布局上移 kbHeight, 输入框跟着上移
   private isInputFieldArea(px: number, py: number, surfW: number, surfH: number): boolean {
-    return py > surfH * 0.78 && px > surfW * 0.05 && px < surfW * 0.85;
+    const kbPx = this.kbHeight; // 0=键盘隐藏
+    const inputBottom = surfH - kbPx;
+    return py > inputBottom - 300 && py < inputBottom + 40 &&
+      px > surfW * 0.05 && px < surfW * 0.85;
   }
 
   build() {
@@ -79,10 +109,9 @@ struct Index {
               try {
                 native.petTouch(px, py, t.id, true);
                 // 点输入框 → 弹软键盘(native IME attach)
-                // display.height/width 已是物理像素(勿再乘 density)
-                const d = display.getDefaultDisplaySync();
-                const surfW = d.width;
-                const surfH = d.height;
+                // 用当前 surface 尺寸(键盘避让后会缩小)
+                const surfW = this.controller.currentW;
+                const surfH = this.controller.currentH;
                 const inField = this.isInputFieldArea(px, py, surfW, surfH);
                 console.info(`CutePetIme: surf=${surfW}x${surfH} touch=(${px},${py}) inField=${inField}`);
                 if (inField) {

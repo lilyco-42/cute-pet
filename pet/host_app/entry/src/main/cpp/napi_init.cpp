@@ -28,6 +28,7 @@ void ohos_surface_destroyed();
 void ohos_touch(float x, float y, uint64_t touch_id, bool down);
 void ohos_char(uint32_t ch);
 void ohos_key(int32_t keycode, bool down);
+void ohos_keyboard_height(int32_t px);
 }
 
 // hilog 日志(诊断用)
@@ -36,6 +37,10 @@ void ohos_key(int32_t keycode, bool down);
 #undef LOG_TAG
 #define LOG_DOMAIN 0xD003C00
 #define LOG_TAG "CutePet"
+
+// 当前 surface 尺寸(供键盘避让用)
+static int32_t g_curSurfaceW = 0;
+static int32_t g_curSurfaceH = 0;
 
 // petStart(surfaceId: bigint, w: number, h: number): number
 // 1) 启动 Rust 渲染线程(pet_entry 内部 spawn 后返回, 线程忙等首个 surface)
@@ -69,6 +74,8 @@ static napi_value PetStart(napi_env env, napi_callback_info info) {
     }
     ohos_surface_created(window);
     ohos_surface_changed(w, h);
+    g_curSurfaceW = w;
+    g_curSurfaceH = h;
 
     napi_value result;
     napi_create_int32(env, 0, &result);
@@ -92,6 +99,8 @@ static napi_value PetResize(napi_env env, napi_callback_info info) {
     napi_get_value_int32(env, args[0], &w);
     napi_get_value_int32(env, args[1], &h);
     ohos_surface_changed(w, h);
+    g_curSurfaceW = w;
+    g_curSurfaceH = h;
     napi_value result;
     napi_create_int32(env, 0, &result);
     return result;
@@ -120,6 +129,19 @@ static napi_value PetKey(napi_env env, napi_callback_info info) {
     napi_get_value_int32(env, args[0], &keycode);
     napi_get_value_bool(env, args[1], &down);
     ohos_key(keycode, down);
+    napi_value result;
+    napi_create_int32(env, 0, &result);
+    return result;
+}
+
+// petKeyboard(px: number): 键盘高度(px, 0=隐藏) → Rust 布局避让
+static napi_value PetKeyboard(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    int32_t px = 0;
+    napi_get_value_int32(env, args[0], &px);
+    ohos_keyboard_height(px);
     napi_value result;
     napi_create_int32(env, 0, &result);
     return result;
@@ -187,6 +209,8 @@ static void OnImeSendEnterKey(InputMethod_TextEditorProxy* proxy, InputMethod_En
     (void)proxy; (void)enterKeyType;
     ohos_key(2054, true); // Enter → 发送
 }
+// 键盘状态: 仅记录(供 ArkTS 侧检测), surface 缩放由 ArkTS 改 XComponent 高度驱动
+// (手动 ohos_surface_changed 会与 EGL surface 尺寸不匹配, 破坏渲染)
 static void OnImeSendKeyboardStatus(InputMethod_TextEditorProxy* proxy, InputMethod_KeyboardStatus status) {
     (void)proxy; (void)status;
 }
@@ -194,10 +218,10 @@ static int32_t OnImeReceivePrivateCommand(InputMethod_TextEditorProxy* proxy, In
     (void)proxy; (void)privateCommand; (void)size;
     return 0;
 }
-// 预上屏(拼音中间态): 转发字符(与 InsertText 一致, Rust 输入框显示拼音)
+// 预上屏(拼音中间态): 不转发到输入框 — 只等确认后的 InsertText(否则输入框
+// 会同时显示拼音和中文)
 static int32_t OnImeSetPreviewText(InputMethod_TextEditorProxy* proxy, const char16_t text[], size_t length, int32_t start, int32_t end) {
-    (void)proxy; (void)start; (void)end;
-    OnImeInsertText(proxy, text, length);
+    (void)proxy; (void)text; (void)length; (void)start; (void)end;
     return 0;
 }
 static void OnImeFinishTextPreview(InputMethod_TextEditorProxy* proxy) {
@@ -312,6 +336,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"petKey", nullptr, PetKey, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"petAttachIme", nullptr, PetAttachIme, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"petDetachIme", nullptr, PetDetachIme, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"petKeyboard", nullptr, PetKeyboard, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;

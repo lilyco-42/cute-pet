@@ -20,7 +20,7 @@ use crate::{
     },
 };
 
-use std::{cell::RefCell, sync::mpsc, thread, time::Duration};
+use std::{sync::mpsc, sync::Mutex, thread, time::Duration};
 
 pub use crate::native::gl::{self, *};
 
@@ -41,15 +41,13 @@ enum Message {
 }
 unsafe impl Send for Message {}
 
-thread_local! {
-    static MESSAGES_TX: RefCell<Option<mpsc::Sender<Message>>> = RefCell::new(None);
-}
+// 跨线程消息发送(JS 线程 + IME 回调线程共用; 渲染线程用 rx 接收)
+// 之前用 thread_local! 导致 IME 回调线程 panic(thread_local 不跨线程)
+static MESSAGES_TX: Mutex<Option<mpsc::Sender<Message>>> = Mutex::new(None);
 
 fn send_message(message: Message) {
-    MESSAGES_TX.with(|tx| {
-        let mut tx = tx.borrow_mut();
-        tx.as_mut().unwrap().send(message).unwrap();
-    })
+    let tx = MESSAGES_TX.lock().unwrap();
+    tx.as_ref().unwrap().send(message).unwrap();
 }
 
 // ---- 日志(鸿蒙 hilog) ----
@@ -126,14 +124,20 @@ impl MainThreadState {
             window as _,
             std::ptr::null_mut(),
         );
-        assert!(!self.surface.is_null(), "eglCreateWindowSurface failed");
+        if self.surface.is_null() {
+            // 记录到文件(渲染线程无 hilog 通道)
+            std::fs::write("/data/local/tmp/pet_render.log", "eglCreateWindowSurface failed\n").ok();
+            return;
+        }
         let res = (self.libegl.eglMakeCurrent)(
             self.egl_display,
             self.surface,
             self.surface,
             self.egl_context,
         );
-        assert!(res != 0, "eglMakeCurrent failed");
+        if res == 0 {
+            std::fs::write("/data/local/tmp/pet_render.log", "eglMakeCurrent failed\n").ok();
+        }
     }
 
     fn process_message(&mut self, msg: Message) {
@@ -149,6 +153,12 @@ impl MainThreadState {
                     let mut d = crate::native_display().lock().unwrap();
                     d.screen_width = width as _;
                     d.screen_height = height as _;
+                }
+                // 尺寸变化(XComponent 缩放/键盘避让) → 重建 EGL surface 跟随新尺寸
+                if width > 0 && height > 0 && !self.window.is_null() {
+                    unsafe {
+                        self.update_surface(self.window);
+                    }
                 }
                 self.event_handler.resize_event(width as _, height as _);
             }
@@ -243,7 +253,7 @@ where
     let f = SendHack(f);
     let (tx, rx) = mpsc::channel();
     let tx2 = tx.clone();
-    MESSAGES_TX.with(move |messages_tx| *messages_tx.borrow_mut() = Some(tx2));
+    *MESSAGES_TX.lock().unwrap() = Some(tx2);
 
     thread::spawn(move || {
         let mut libegl = LibEgl::try_load().expect("Cant load LibEGL");

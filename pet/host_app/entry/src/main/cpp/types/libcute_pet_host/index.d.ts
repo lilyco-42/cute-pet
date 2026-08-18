@@ -7,3 +7,4 @@ export const petChar: (ch: number) => number;
 export const petKey: (keycode: number, down: boolean) => number;
 export const petAttachIme: (uiContext: object) => number;
 export const petDetachIme: () => number;
+export const petKeyboard: (px: number) => number;

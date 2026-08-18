@@ -955,6 +955,14 @@ async fn main() {
             use demo::components::config::{Attrs, ButtonConfig, ButtonStateConfig, ChatPanelConfig, Style, TextFieldConfig};
             let ui_scale = (screen_width() / 400.0).clamp(1.0, 3.5);
             let mut ui = ply.begin();
+            // 键盘避让: 压缩布局高度让聊天面板上移(鸿蒙键盘弹出时)
+            #[cfg(target_env = "ohos")]
+            {
+                let kh = keyboard_height();
+                if kh > 0.0 && kh < screen_height() * 0.7 {
+                    ui.set_layout_dimensions(ply_engine::math::Dimensions::new(screen_width(), screen_height() - kh));
+                }
+            }
             let _g = Style::with(
                 Attrs {
                     chat_panel: Some(ChatPanelConfig {
@@ -1188,4 +1196,20 @@ async fn main() {
 #[no_mangle]
 pub extern "C" fn pet_entry() {
     main();
+}
+
+// 键盘高度(px, 0=隐藏): ArkTS keyboardHeightChange → petKeyboard → 此处。
+// 聊天面板布局据此上移避开软键盘(surface 保持全尺寸, 避免 resize 渲染 bug)。
+#[cfg(target_env = "ohos")]
+static KEYBOARD_H: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
+
+#[cfg(target_env = "ohos")]
+#[no_mangle]
+pub extern "C" fn ohos_keyboard_height(px: i32) {
+    KEYBOARD_H.store(px, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[cfg(target_env = "ohos")]
+fn keyboard_height() -> f32 {
+    KEYBOARD_H.load(std::sync::atomic::Ordering::Relaxed).max(0) as f32
 }
