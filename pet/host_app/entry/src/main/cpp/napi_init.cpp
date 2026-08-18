@@ -151,15 +151,19 @@ static napi_value PetKeyboard(napi_env env, napi_callback_info info) {
 static InputMethod_TextEditorProxy* g_imeProxy = nullptr;
 static InputMethod_InputMethodProxy* g_imeInputMethodProxy = nullptr;
 
-// 上屏文本(UTF-16) → 逐码点 ohos_char(Rust 输入框)
+// 上屏文本(UTF-16) → 逐码点 ohos_char(Rust 输入框)。
+// ⚠️ 反序遍历: macroquad 的 chars_pressed_queue 是 LIFO(pop 从尾部取),
+// IME 一次性上屏多字符时正序插入会被反转("吃药"→"药吃")。
 static void OnImeInsertText(InputMethod_TextEditorProxy* proxy, const char16_t* text, size_t length) {
-    for (size_t i = 0; i < length; i++) {
+    for (size_t i = length; i > 0;) {
+        i--;
         uint32_t cp = static_cast<uint32_t>(text[i]);
-        if (cp >= 0xD800 && cp <= 0xDBFF && i + 1 < length) {
-            uint32_t low = static_cast<uint32_t>(text[i + 1]);
-            if (low >= 0xDC00 && low <= 0xDFFF) {
-                cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
-                i++;
+        // 代理对: 低代理在前(UTF-16 内存序), 与高代理组合
+        if (cp >= 0xDC00 && cp <= 0xDFFF && i > 0) {
+            uint32_t high = static_cast<uint32_t>(text[i - 1]);
+            if (high >= 0xD800 && high <= 0xDBFF) {
+                cp = 0x10000 + ((high - 0xD800) << 10) + (cp - 0xDC00);
+                i--;
             }
         }
         ohos_char(cp);
