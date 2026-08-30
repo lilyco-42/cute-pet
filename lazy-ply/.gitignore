@@ -1,8 +1,0 @@
-/target
-/build
-/backup
-.agents/
-.claude/
-/tools/*/target/
-/docs/live/
-/index.html

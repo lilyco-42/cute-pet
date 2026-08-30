@@ -34,3 +34,8 @@ pet/release_pkg/
 tmp_rd_ci.yml
 .agents/state/sessions/
 # 忽略 vendor 内嵌 workflow
+pet/assets/vlm_config.json
+
+# lazy-ply 现在是 junction -> D:/Code/lazy-ply (canonical 独立 git 仓库), 不再纳入 cute-pet 版本控制
+/lazy-ply/
+

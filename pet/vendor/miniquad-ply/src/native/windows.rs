@@ -1146,6 +1146,8 @@ impl WindowsDisplay {
             SetImeEnabled(enabled) => {
                 self.set_ime_enabled(enabled);
             }
+            // W2 视觉的 ScreenCapture 是 Android MediaProjection 专属; 桌面端无需采集, no-op。
+            ScreenCapture => {}
         }
     }
 }

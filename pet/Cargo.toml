@@ -5,11 +5,12 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.104"
-demo = { path = "../lazy-ply" }
+lazy-ply = { path = "../lazy-ply" }
 ply-engine = { version = "1.1", default-features = false, features = ["built-in-shaders", "audio"] }
 rust-embed = "8.12.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+base64 = "0.23"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ureq = { version = "3.4.0", features = ["json"] }
@@ -33,9 +34,26 @@ assets = "assets_apk/"
 # 发布构建: 注释掉 x86_64, plyx apk --native, 复制到 release/
 build_targets = ["aarch64-linux-android", "x86_64-linux-android"]
 # 网络权限(远程 TTS/LLM 必需; cargo-quad-apk 键名是 permission, 单数)
-permission = [{ name = "android.permission.INTERNET" }]
+permission = [
+  { name = "android.permission.INTERNET" },
+  { name = "android.permission.SYSTEM_ALERT_WINDOW" },
+  { name = "android.permission.FOREGROUND_SERVICE" },
+  { name = "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" },
+  { name = "android.permission.POST_NOTIFICATIONS" },
+]
+# TYPE_APPLICATION_OVERLAY 需 API 26+ (悬浮窗桌宠最低版本)
+min_sdk_version = 26
+# 显式 compile/target SDK(本地 fork 默认 31; 本机只有 android-35/36)
+android_version = 36
+target_sdk_version = 36
 # 允许 http 明文(本地/局域网 TTS 服务, 如模拟器 10.0.2.2)
-application_attributes = { "android:usesCleartextTraffic" = "true" }
+application_attributes = { "android:usesCleartextTraffic" = "true", "android:debuggable" = "true" }
+
+# W2 视觉: MediaProjection 截屏前台服务(cargo-quad-apk-ply 原生支持)
+[[package.metadata.android.service]]
+name = "rust.cute_pet.ScreenCaptureService"
+foreground_service_type = "mediaProjection"
+exported = false
 
 [profile.release]
 opt-level = 3

@@ -1,5 +1,7 @@
 //! 丛雨(ムラサメ) 桌宠雏形 — ply-engine / macroquad 渲染
 //! manifest 驱动图层选择 + 逐层 draw_texture_ex 合成 + 待机动画 + 表情切换 + 透明置顶窗口。
+// Windows GUI 子系统: 不弹控制台窗口(桌宠窗口置顶, 无黑控制台挡道)。
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 use ply_engine::prelude::*;
 use serde::Deserialize;
 use std::cell::RefCell;
@@ -7,9 +9,88 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use demo::components::{chat_panel, ChatMessage, ChatPanelEvents, ChatPanelState};
+use lazy_ply::components::{chat_panel, ChatMessage, ChatPanelEvents, ChatPanelState};
 
-use cute_pet::chat::Persona;
+use cute_pet::app::{self, AppEvent, AppState};
+use cute_pet::chat::{voice_meta, Lang, Persona, LANG_TOGGLE, LLM_HINT_TEXT};
+
+/// 免费模型渠道信息页(放 GitHub 或项目文档, 便于持续维护)。
+const LLM_HINT_URL: &str = "https://github.com/lazy-plxy/cute-pet/blob/main/docs/free-llm.md";
+
+/// W2 视觉: 聊天面板快捷问题文案(main.rs 拦截处理: 截屏让丛雨"看着你")。
+const VISION_QUESTION: &str = "🔍 看看我在干嘛";
+const VISION_QUESTION_JP: &str = "🔍 何を見てる？";
+/// 语言切换按钮文案(中/日)
+const LANG_TOGGLE_JP: &str = "🌐 言語切替";
+/// LLM 免费模型提示(日)
+const LLM_HINT_TEXT_JP: &str = "AI 会話: 無料モデル → NVIDIA NIM · OpenRouter · 商湯 (タップで表示)";
+/// 快捷问题列表(中/日, 与 lazy-ply chat_panel 默认一致)
+const QUICK_ZH: &[&str] = &[
+    "在吗？",
+    "吃饭了吗？",
+    "想我了吗？",
+    "心情不好",
+    "晚安",
+    "你会一直陪我吗？",
+    "🌐 切换语言",
+    "🔍 看看我在干嘛",
+];
+const QUICK_JP: &[&str] = &[
+    "いる？",
+    "ご飯食べた？",
+    "会いたかった？",
+    "機嫌悪い",
+    "おやすみ",
+    "ずっと一緒にいてくれる？",
+    "🌐 言語切替",
+    "🔍 何を見てる？",
+];
+const PLACEHOLDER_JP: &str = "日本語で入力…";
+const SEND_JP: &str = "送信";
+
+/// 按当前语言切换聊天面板 UI 文案(快捷问题/输入框/发送/LLM 提示)。
+fn apply_ui_lang(state: &mut ChatPanelState, lang: Lang) {
+    if lang == Lang::Jp {
+        state.quick_questions = QUICK_JP;
+        state.input_placeholder = PLACEHOLDER_JP;
+        state.send_label = SEND_JP;
+        if state.llm_hint.is_some() {
+            state.llm_hint = Some(LLM_HINT_TEXT_JP);
+        }
+    } else {
+        state.quick_questions = QUICK_ZH;
+        state.input_placeholder = "说点什么…";
+        state.send_label = "发送";
+        if state.llm_hint.is_some() {
+            state.llm_hint = Some(LLM_HINT_TEXT);
+        }
+    }
+}
+
+/// 打开 LLM 免费模型渠道说明页(桌面: 系统默认浏览器; WASM: JS 拦截 OPENURL 前缀)。
+#[cfg(not(any(target_os = "android", target_env = "ohos")))]
+fn open_llm_hint_page() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        // WASM: 与 SPEAK 同理, 由 build/web 的 JS 拦截 console.log 打开新标签页
+        println!("OPENURL:{LLM_HINT_URL}");
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = std::process::Command::new("cmd")
+            .arg("/C")
+            .arg("start")
+            .arg("")
+            .arg(LLM_HINT_URL)
+            .spawn();
+    }
+}
+
+/// Android/HarmonyOS 桩(系统意图打开浏览器, 简化: 无操作, 避免未用警告)。
+#[cfg(any(target_os = "android", target_env = "ohos"))]
+fn open_llm_hint_page() {
+    // TODO: Android/鸿蒙 用系统意图打开浏览器; 暂不实现(桌面/WASM 为主)
+}
 
 #[cfg(target_os = "windows")]
 mod windows;
@@ -28,7 +109,7 @@ const SCALE: f32 = 0.6;
 #[cfg(not(any(target_os = "android", target_env = "ohos")))]
 const SCALE: f32 = 1.0 / 3.0;
 
-/// 跨平台资产: 编译期嵌入二进制(rust-embed), 所有平台统一, 无运行时路径问题。
+/// 跨平台资�? 编译期嵌入二进制(rust-embed), 所有平台统一, 无运行时路径问题�?
 #[derive(rust_embed::RustEmbed)]
 #[folder = "assets/"]
 struct Asset;
@@ -112,10 +193,10 @@ struct LayerItem {
 
 // ---------------- 眨眼/口型动画 ----------------
 
-/// 孪生表情映射: (基础表情, 眨眼闭眼版, 说话开口版)。
-/// 由 `assets/pet/murasame` 的 b/e/m 合成层像素分析生成(闭眼层 = 眼白≈0)。
-/// 来源见仓库工具: 对每个基础脸选「嘴部差异最小 + 眼部变化最大」的合成脸作眨眼,
-/// 「眼部差异最小 + 嘴部变化最大」的作说话口型。
+/// 孪生表情映射: (基础表情, 眨眼闭眼�? 说话开口版)�?
+/// �?`assets/pet/murasame` �?b/e/m 合成层像素分析生�?闭眼�?= 眼白�?)�?
+/// 来源见仓库工�? 对每个基础脸选「嘴部差异最�?+ 眼部变化最大」的合成脸作眨眼,
+/// 「眼部差异最�?+ 嘴部变化最大」的作说话口型�?
 const FACE_TWINS: &[(&str, &str, &str)] = &[
     ("01", "30", "39"),
     ("02", "33", "39"),
@@ -145,7 +226,7 @@ const FACE_TWINS: &[(&str, &str, &str)] = &[
     ("26", "40", "35"),
 ];
 
-/// 当前表情的动画孪生(眨眼/说话)。查不到则返回 None(该表情无动画素材)。
+/// 当前表情的动画孪�?眨眼/说话)。查不到则返�?None(该表情无动画素材)�?
 fn face_twins(face: &str) -> Option<(&str, &str)> {
     FACE_TWINS.iter().find(|(b, _, _)| *b == face).map(|(_, bl, tk)| (*bl, *tk))
 }
@@ -154,69 +235,6 @@ fn face_twins(face: &str) -> Option<(&str, &str)> {
 
 /// 语音 → (表情, 中文台词, 日文台词[可选]) 映射表。
 /// 每条语音: (文件名, 表情face, 中文台词, 日文台词)
-/// 表情可用 face id: 01默认 02微笑 03发懵 04惊讶 13困扰 14生气 19孩子气 20/21极度不满
-/// 想要「哪句台词配哪个表情」→ 直接改第二列; 想改点击显示的字 → 改第三/四列。
-pub const VOICE_META: &[(&str, &str, &str, Option<&str>)] = &[
-    // ---- 日文原声反应音效(mur001_*, voice/ 下 ogg) ----
-    ("mur001_013", "02", "请多关照了哦，主人", Some("よろしく頼むぞ、ご主人")),
-    ("mur001_005", "01", "吾辈名为丛雨", Some("吾輩の名前はムラサメ")),
-    ("mur001_010", "13", "这样你能稍微冷静点听我说了吗？", Some("これで少しは落ち着いて話を聞く気になったか？")),
-    ("mur001_002", "01", "我在这边，这边", Some("こっちだ、こっち")),
-    ("mur001_007", "13", "没必要复仇，丛雨丸马上就会恢复", Some("折れた程度で復讐する必要などない")),
-    // ---- 中文克隆问候(greeting_XX, voice/greeting/ 下 wav) ----
-    ("greeting_01", "02", "你好呀，吾辈是丛雨！", None),
-    ("greeting_02", "02", "早上好，主人！", None),
-    ("greeting_03", "02", "中午好，今天也要加油哦！", None),
-    ("greeting_04", "02", "晚上好，吾辈一直在等着你。", None),
-    ("greeting_05", "02", "辛苦了，吾辈给你揉揉肩！", None),
-    ("greeting_06", "02", "再见啦，下次再来找吾辈玩！", None),
-    ("greeting_07", "02", "你回来啦，吾辈好想你！", None),
-    ("greeting_08", "13", "别熬夜啦，要注意身体！", None),
-    ("greeting_09", "03", "今天心情怎么样？", None),
-    ("greeting_10", "19", "吾辈最喜欢你了！", None),
-];
-
-/// 按文件名查语音元数据。
-pub fn voice_meta(name: &str) -> Option<&'static (&'static str, &'static str, &'static str, Option<&'static str>)> {
-    VOICE_META.iter().find(|(n, _, _, _)| *n == name)
-}
-
-/// 聊天面板的「语言切换」快捷按钮文案(与 lazy-ply chat_panel 默认快捷问题一致)。
-pub const LANG_TOGGLE: &str = "🌐 切换语言";
-
-/// 聊天面板底部的 LLM 免费模型提示(点击打开浏览器看渠道列表)。
-pub const LLM_HINT_TEXT: &str = "AI 对话: 免费模型 → NVIDIA NIM · OpenRouter · 商汤 (点击查看)";
-/// 免费模型渠道信息页(放 GitHub 或项目文档, 便于持续维护)。
-const LLM_HINT_URL: &str = "https://github.com/lazy-plxy/cute-pet/blob/main/docs/free-llm.md";
-
-/// 打开 LLM 免费模型渠道说明页(桌面: 系统默认浏览器; WASM: JS 拦截 OPENURL 前缀)。
-#[cfg(not(any(target_os = "android", target_env = "ohos")))]
-fn open_llm_hint_page() {
-    #[cfg(target_arch = "wasm32")]
-    {
-        // WASM: 与 SPEAK 同理, 由 build/web 的 JS 拦截 console.log 打开新标签页
-        println!("OPENURL:{LLM_HINT_URL}");
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let _ = std::process::Command::new("cmd")
-            .arg("/C")
-            .arg("start")
-            .arg("")
-            .arg(LLM_HINT_URL)
-            .spawn();
-    }
-}
-
-/// Android/HarmonyOS 桩(系统意图打开浏览器, 简化: 无操作, 避免未用警告)。
-#[cfg(any(target_os = "android", target_env = "ohos"))]
-fn open_llm_hint_page() {
-    // TODO: Android/鸿蒙 用系统意图打开浏览器; 暂不实现(桌面/WASM 为主)
-}
-
-
-// ---------------- 桌宠运行时 ----------------
-
 struct Pet {
     dress: String,
     face: String,
@@ -229,7 +247,7 @@ struct Pet {
 }
 
 impl Pet {
-    /// 依据 manifest 的 dress/face 表选择本次要绘制的层。
+    /// 依据 manifest �?dress/face 表选择本次要绘制的层�?
     fn selected_layers(&self, face: &str) -> Vec<&LayerItem> {
         let items = &self.set_meta.composition.items;
         let mut out: Vec<&LayerItem> = Vec::new();
@@ -266,7 +284,7 @@ impl Pet {
 
         let layers = self.selected_layers(face);
         let n_layers = layers.len();
-        // z 序: 0=身体/服装 1=表情 2=头发(髪かぶせ) 3=腮红/泪/气息(组!=0 且非表情)
+        // z �? 0=身体/服装 1=表情 2=头发(髪かぶせ) 3=腮红/�?气息(�?=0 且非表情)
         let face_g1 = self.set_meta.composition.groups.get("表情").copied().unwrap_or(0);
         let face_g2 = self.set_meta.composition.groups.get("表情（追加）").copied().unwrap_or(0);
         let z_index = |it: &LayerItem| -> i32 {
@@ -312,7 +330,7 @@ impl Pet {
     }
 }
 
-/// 数字键 1..=9 → 表情索引
+/// 数字�?1..=9 �?表情索引
 fn digit_key(idx: u32) -> KeyCode {
     match idx {
         0 => KeyCode::Key1,
@@ -329,7 +347,7 @@ fn digit_key(idx: u32) -> KeyCode {
 }
 
 /// 按主音量播放声音(替代 play_sound_once 实现页面内调音量)。
-/// Android 桌宠页面内无法用系统音量键(miniquad 不支持), 故应用内主音量控制。
+/// Android 桌宠页面内无法用系统音量键, miniquad 不支持, 故应用内主音量控制。
 fn play_vol(sound: &Sound, master_volume: f32) {
     play_sound(
         sound,
@@ -340,8 +358,8 @@ fn play_vol(sound: &Sound, master_volume: f32) {
     );
 }
 
-/// 互斥播放: 播新语音前停掉上一个, 避免多个声音重叠。
-/// 所有语音播放(点击/E键/TTS/兜底/预置)统一走这里。
+/// 互斥播放: 播新语音前停掉上一�? 避免多个声音重叠�?
+/// 所有语音播�?点击/E�?TTS/兜底/预置)统一走这里�?
 fn play_voice_vol(sound: &Sound, master_volume: f32, last: &mut Option<Sound>) {
     if let Some(prev) = last.take() {
         stop_sound(&prev);
@@ -350,7 +368,7 @@ fn play_voice_vol(sound: &Sound, master_volume: f32, last: &mut Option<Sound>) {
     *last = Some(sound.clone());
 }
 
-/// 右上角绘制音量指示条(音量变化后短暂显示)。y=90 避开 Android 状态栏(约 0-66px)。
+/// 右上角绘制音量指示条(音量变化后短暂显�?。y=90 避开 Android 状态栏(�?0-66px)�?
 fn draw_volume_indicator(volume: f32) {
     let x = screen_width() - 70.0;
     let y = 90.0;
@@ -363,8 +381,8 @@ fn draw_volume_indicator(volume: f32) {
     }
 }
 
-/// 角色头顶的台词气泡: 半透明黑底白字 + 小三角尾巴指向角色。
-/// 字号/内边距随 ui_scale 缩放(Android 2.7x), 长文本自动换行。
+/// 角色头顶的台词气�? 半透明黑底白字 + 小三角尾巴指向角色�?
+/// 字号/内边距随 ui_scale 缩放(Android 2.7x), 长文本自动换行�?
 fn draw_speech_bubble(text: &str, font: &macroquad::text::Font, cx: f32, char_top: f32) {
     let ui_scale = if cfg!(any(target_os = "android", target_env = "ohos")) {
         (screen_width() / 400.0).clamp(1.0, 3.5)
@@ -375,7 +393,7 @@ fn draw_speech_bubble(text: &str, font: &macroquad::text::Font, cx: f32, char_to
     let pad_x = 14.0 * ui_scale;
     let pad_y = 9.0 * ui_scale;
     let max_w = (screen_width() * 0.72).max(120.0);
-    // 自动换行 + 测多行尺寸(行距 1.3)
+    // 自动换行 + 测多行尺�?行距 1.3)
     let wrapped = macroquad::text::wrap_text(text, Some(font), font_size, 1.0, max_w - pad_x * 2.0);
     let dims = macroquad::text::measure_multiline_text(&wrapped, Some(font), font_size, 1.0, Some(1.3));
     let bw = dims.width + pad_x * 2.0;
@@ -394,7 +412,7 @@ fn draw_speech_bubble(text: &str, font: &macroquad::text::Font, cx: f32, char_to
         macroquad::math::Vec2::new(tail_x + tail_w / 2.0, by + bh + tail_h),
         bg,
     );
-    // 多行白字(首行基线 = 气泡内 top + offset_y)
+    // 多行白字(首行基线 = 气泡�?top + offset_y)
     macroquad::text::draw_multiline_text_ex(
         &wrapped,
         bx + pad_x,
@@ -419,11 +437,17 @@ fn window_conf() -> macroquad::conf::Conf {
             window_height: 850,
             high_dpi: true,
             window_resizable: false,
-            // 关闭 MSAA: 模拟器宿主 GPU 透传(如 AMD Translator)不提供
+            // 关闭 MSAA: 模拟器宿�?GPU 透传(�?AMD Translator)不提�?
             // EGL_SAMPLES=1 配置, 导致 miniquad egl.rs cfg_count=0 panic
             sample_count: 0,
             platform: miniquad::conf::Platform {
                 webgl_version: miniquad::conf::WebGLVersion::WebGL2,
+                // 功耗: Android 桌宠常驻悬浮, 满帧率渲染空转耗电
+                // → 阻塞事件循环 + 100ms 周期唤醒(空闲 ~10fps, 交互即时响应)
+                #[cfg(target_os = "android")]
+                blocking_event_loop: true,
+                #[cfg(target_os = "android")]
+                sleep_interval_ms: Some(100),
                 ..Default::default()
             },
             ..Default::default()
@@ -442,7 +466,7 @@ async fn main() {
 
     let set_meta = manifest.sets.remove("a").expect("缺少 set a");
 
-    // 角色轮廓 bbox: 让窗口贴合立绘(顶部透明区域裁掉)
+    // 角色轮廓 bbox: 让窗口贴合立�?顶部透明区域裁掉)
     let mut min_x = u32::MAX;
     let mut min_y = u32::MAX;
     let mut max_x = 0u32;
@@ -455,14 +479,14 @@ async fn main() {
     }
     let bbox_w = max_x - min_x;
     let bbox_h = max_y - min_y;
-    // 原始立绘尺寸(不含内边距), 供渲染缩放使用
+    // 原始立绘尺寸(不含内边�?, 供渲染缩放使�?
     let sprite_w = bbox_w;
     let sprite_h = bbox_h;
-    // 内边距(画布坐标): 窗口=舞台(顶部气泡区 + 底部聊天控件区 + 中部立绘),
+    // 内边�?画布坐标): 窗口=舞台(顶部气泡�?+ 底部聊天控件�?+ 中部立绘),
     // 聊天 UI 不再覆盖立绘
     const PAD: u32 = 90;
-    const PAD_TOP: u32 = 480;    // 顶部气泡区
-    const PAD_BOTTOM: u32 = 540; // 底部聊天控件区
+    const PAD_TOP: u32 = 480;    // 顶部气泡�?
+    const PAD_BOTTOM: u32 = 540; // 底部聊天控件�?
     let pad_x = PAD.min(bbox_w / 3);
     let pad_top = PAD_TOP.min(bbox_h / 2);
     let pad_bottom = PAD_BOTTOM.min(bbox_h / 2);
@@ -484,14 +508,14 @@ async fn main() {
             textures.insert(item.layer_id, Texture2D::from_file_with_format(&bytes, None));
         }
     }
-    println!("已加载 {} 层纹理", textures.len());
+    println!("已加载{} 层纹理", textures.len());
 
-    // 语音库: 按 VOICE_META 表加载, 中文克隆问候(greeting) + 日文原声反应(mur001) 分开
-    let mut cn_voices: Vec<(String, Sound)> = Vec::new(); // 中文(点击/兜底用)
+    // 语音�? �?VOICE_META 表加�? 中文克隆问�?greeting) + 日文原声反应(mur001) 分开
+    let mut cn_voices: Vec<(String, Sound)> = Vec::new(); // 中文(点击/兜底�?
     let mut jp_voices: Vec<(String, Sound)> = Vec::new(); // 日文原声反应
-    for (name, _face, _zh, _jp) in VOICE_META {
+    for (name, _face, _zh, _jp) in cute_pet::chat::VOICE_META {
         let path = if name.starts_with("greeting_") {
-            // greeting 为 ogg: WASM 走浏览器 decodeAudioData, 原生支持 vorbis
+            // greeting �?ogg: WASM 走浏览器 decodeAudioData, 原生支持 vorbis
             format!("voice/greeting/{name}.ogg")
         } else {
             format!("voice/{name}.ogg")
@@ -500,7 +524,7 @@ async fn main() {
             if let Ok(s) = load_sound_from_bytes(&bytes).await {
                 if name.starts_with("greeting_") {
                     cn_voices.push((name.to_string(), s));
-                    println!("问候语音: {name}");
+                    println!("问候语: {name}");
                 } else {
                     jp_voices.push((name.to_string(), s));
                     println!("语音: {name}");
@@ -509,7 +533,7 @@ async fn main() {
         }
     }
     println!("语音库: 中文 {} 条, 日文 {} 条", cn_voices.len(), jp_voices.len());
-    // 预置对话库: 中文问答(文本独立于语音, 保证回复一定中文)
+    // 预置对话�? 中文问答(文本独立于语�? 保证回复一定中�?
     let mut preset_kws: Vec<String> = Vec::new();   // 问题(用于输入匹配)
     let mut preset_answers: Vec<String> = Vec::new(); // 回答文本(中文)
     let mut preset_sounds: Vec<Sound> = Vec::new(); // 对应语音(可能为空)
@@ -520,7 +544,7 @@ async fn main() {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            // 桌面: PET_VOICE_DIR 指向外部语音目录时用其 dialog.txt; 否则(含 Android)用内嵌预置问答
+            // 桌面: PET_VOICE_DIR 指向外部语音目录时用�?dialog.txt; 否则(�?Android)用内嵌预置问�?
             std::env::var("PET_VOICE_DIR")
                 .ok()
                 .and_then(|d| std::fs::read_to_string(std::path::Path::new(&d).join("dialog.txt")).ok())
@@ -535,11 +559,11 @@ async fn main() {
             }
         }
     }
-    // 语音: 与问答一一对应(dialog_preset 75 条 = voice_preset/fei00-74)。
-    // 用 Vec<Option<Sound>> 按 idx 对齐: 某条加载失败时占位 None(播放时跳过),
-    // 保证语音与文本永远不错位。
+    // 语音: 与问答一一对应(dialog_preset 75 �?= voice_preset/fei00-74)�?
+    // �?Vec<Option<Sound>> �?idx 对齐: 某条加载失败时占�?None(播放时跳�?,
+    // 保证语音与文本永远不错位�?
     let mut preset_sounds: Vec<Option<Sound>> = Vec::new();
-    // 内嵌 voice_preset 按 idx 对齐加载
+    // 内嵌 voice_preset �?idx 对齐加载
     #[cfg(target_arch = "wasm32")]
     {
         for i in 0..preset_kws.len() {
@@ -584,8 +608,8 @@ async fn main() {
     println!("预置对话库: 问答 {} 条, 语音 {} 条", preset_answers.len(), preset_sounds.iter().filter(|s| s.is_some()).count());
     let mut voice_idx = 0usize;
 
-    // 聊天层: 丛雨 persona(LLM env 门控 + 语料兜底) + CJK 字体
-    // 双语: 中文语料过滤掉含假名的"垃圾日语"行, 日文语料原样。语言由 PET_LANG / 运行时切换。
+    // 聊天�? 丛雨 persona(LLM env 门控 + 语料兜底) + CJK 字体
+    // 双语: 中文语料过滤掉含假名的垃圾日语, 日文语料原样。语言用 PET_LANG / 运行时切换。
     use cute_pet::chat::{filter_zh_corpus, Lang};
     let corpus_zh = load_asset("murasame_corpus_zh.jsonl").expect("加载中文语料失败");
     let corpus_jp = load_asset("murasame_corpus.jsonl").expect("加载日文语料失败");
@@ -599,7 +623,7 @@ async fn main() {
     persona_jp.set_language(Lang::Jp);
     let mut lang: Lang = if std::env::var("PET_LANG").as_deref() == Ok("jp") { Lang::Jp } else { Lang::Zh };
     let font_bytes = load_asset("font_wenkai.ttf").expect("读取字体失败");
-    // 台词气泡用字体(独立 Font 实例, 与 ply 同字, macroquad draw_text_ex 直绘)
+    // 台词气泡用字�?独立 Font 实例, �?ply 同字, macroquad draw_text_ex 直绘)
     let mq_font = macroquad::text::load_ttf_font_from_bytes(&font_bytes).ok();
     let font_data: &'static [u8] = Box::leak(font_bytes.into_boxed_slice());
     let font_asset: &'static FontAsset = Box::leak(Box::new(FontAsset::Bytes {
@@ -607,9 +631,11 @@ async fn main() {
         data: font_data,
     }));
     let mut ply = Ply::<()>::new(font_asset).await;
-    // 聊天面板(lazy-ply 组件): 气泡历史 + 快捷问题 + 输入框
+    // 聊天面板(lazy-ply 组件): 气泡历史 + 快捷问题 + 输入�?
     let mut chat_state = ChatPanelState::default();
-    // 未配置 LLM Key → 面板底部提示免费模型渠道(NVIDIA NIM / OpenRouter / 商汤)
+    // 初始语言(PET_LANG=jp 时面板也直接日文)
+    apply_ui_lang(&mut chat_state, lang);
+    // 未配�?LLM Key �?面板底部提示免费模型渠道(NVIDIA NIM / OpenRouter / 商汤)
     chat_state.llm_hint = if std::env::var("PET_LLM_API_KEY").is_ok() {
         None
     } else {
@@ -617,16 +643,27 @@ async fn main() {
     };
     let chat_events: Rc<RefCell<ChatPanelEvents>> = Rc::new(RefCell::new(ChatPanelEvents::default()));
     let mut pending_voice: Option<String> = None;
-    // 远程 TTS 合成(丛雨克隆音色): 后台线程拉 wav, 帧循环播放。
+    // 远程 TTS 合成(丛雨克隆音色): 后台线程�?wav, 帧循环播放�?
     // 结果携带成败: Ok(wav) 播放克隆音色; Err 立即播放内嵌兜底语音(保证点击/回复必有声音)
     let tts_result: Arc<Mutex<Option<Result<Vec<u8>, String>>>> = Arc::new(Mutex::new(None));
-    // 台词气泡: (文本, 显示到此刻), 点击桌宠说话时显示在角色旁
+    // 台词气泡: (文本, 显示到此�?, 点击桌宠说话时显示在角色�?
     let mut speech_line: Option<(String, f32)> = None;
-    // 互斥播放: 记录正在/刚播放的声音, 新播放前停掉它(防重叠)
+    // 互斥播放: 记录正在/刚播放的声音, 新播放前停掉�?防重�?
     let mut last_sound: Option<Sound> = None;
-    // 最近一次回复文本(TTS 失败兜底时气泡显示它, 让"在读哪句"可见)
+    // 最近一次回复文本: TTS 失败兜底时气泡显示它, (在读哪句可见)
     let mut last_reply: String = String::new();
-    // F3 调试面板: 显示语音库加载数(诊断用)
+    // W2 视觉: 按钮触发等待新截屏帧 + 分析限流 + 结果通道
+    let mut vision_pending = false;
+    let mut vision_last = -90.0f32;
+    let (vision_tx, vision_rx) = std::sync::mpsc::channel::<String>();
+    let vlm_cfg = load_vlm_config();
+    // 配好 vlm_config.json(有 api_key)后, 启动即自动申请一次"看着你"(首个授权)
+    let mut vision_auto_done = false;
+    // 聊天键盘: 输入框焦点状态(焦点变化时唤起/收起系统 IME)
+    let mut kb_shown = false;
+    // [临时诊断 kb7] 指针是否曾进入输入框(边沿触发手动聚焦)
+    let mut was_over_input = false;
+    // F3 调试面板: 显示语音库加载数(诊断�?
     let mut debug_info = false;
     let preset_total = preset_sounds.len();
     let preset_loaded = preset_sounds.iter().filter(|s| s.is_some()).count();
@@ -664,27 +701,27 @@ async fn main() {
     let mut dragging = false;
     let mut grab_mx = 0.0f32;
     let mut grab_my = 0.0f32;
-    // 点击互动: 说完随机台词 + 切表情
+    // 点击互动: 说完随机台词 + 切表�?
     let mut click_since = 0.0f32;
 
     // 眨眼/口型动画: 眨眼计时 + 说话口型计时
     let mut blink_cycle = 0.0f32;
     let mut blink_phase = 0.0f32;   // 眨眼动画剩余时间(0 = 睁眼)
-    let mut talk_until = 0.0f32;    // 口型动画持续到此刻(发声时触发)
+    let mut talk_until = 0.0f32;    // 口型动画持续到此�?发声时触�?
 
-    // 主音量(0.0~1.0): 桌宠页面内可调(桌面 =/= 键, Android 触摸屏两侧)
+    // 主音�?0.0~1.0): 桌宠页面内可�?桌面 =/= �? Android 触摸屏两�?
     let mut master_volume: f32 = 1.0;
     let mut vol_show_until = 0.0f32;   // 音量指示条显示到此刻
 
     loop {
         let now = macroquad::time::get_time() as f32;
-        // 透明背景: alpha=0, 由 DWM 合成到桌面
+        // 透明背景: alpha=0, �?DWM 合成到桌�?
         clear_background(MacroquadColor::new(0.0, 0.0, 0.0, 0.0));
         // Android/鸿蒙 和风背景(不透明窗口, lazy-ply 组件); 桌面透明窗口不画
         #[cfg(any(target_os = "android", target_env = "ohos"))]
-        demo::components::pet_background(now, screen_width(), screen_height());
+        lazy_ply::components::pet_background(now, screen_width(), screen_height());
 
-        // 主音量调节(桌宠页面内): 桌面 `-`/`=` 或 `[`/`]`, Android 触摸屏两侧
+        // 主音量调�?桌宠页面�?: 桌面 `-`/`=` �?`[`/`]`, Android 触摸屏两�?
         let mut vol_changed = false;
         if is_key_pressed(KeyCode::Minus) || is_key_pressed(KeyCode::LeftBracket) {
             master_volume = (master_volume - 0.1).clamp(0.0, 1.0);
@@ -699,15 +736,15 @@ async fn main() {
             eprintln!("[vol] {:.0}%", master_volume * 100.0);
         }
 
-        // Android 触摸经 macroquad 映射为鼠标事件(单指=鼠标), 用鼠标释放统一处理:
-        // 上半屏左右边缘 = 音量; 角色范围内 = 说话。不用 touches() 的 Started 判断
-        // (adb/真机 DOWN+UP 可能同帧到达, Started 阶段会丢失)。
+        // Android 触摸�?macroquad 映射为鼠标事�?单指=鼠标), 用鼠标释放统一处理:
+        // 上半屏左右边�?= 音量; 角色范围�?= 说话。不�?touches() �?Started 判断
+        // (adb/真机 DOWN+UP 可能同帧到达, Started 阶段会丢�?�?
         if is_mouse_button_released(MouseButton::Left) && now - click_since > 0.4 {
             click_since = now;
             let (mx, my) = mouse_position();
             #[cfg(any(target_os = "android", target_env = "ohos"))]
             {
-                // 上半屏左右边缘 → 音量
+                // 上半屏左右边�?�?音量
                 let edge = screen_width() * 0.04;
                 if my < screen_height() * 0.5 && (mx < edge || mx > screen_width() - edge) {
                     if mx < edge {
@@ -718,18 +755,18 @@ async fn main() {
                     vol_show_until = now + 1.5;
                     eprintln!("[vol] {:.0}%", master_volume * 100.0);
                 } else {
-                    // 点击立绘中部(避开顶部气泡区与底部聊天控件区, 且横向在角色范围内)
+                    // 点击立绘中部(避开顶部气泡区与底部聊天控件�? 且横向在角色范围�?
                     let ui_scale_click = (screen_width() / 400.0).clamp(1.0, 3.5);
                     let in_ui_band = my < 150.0 * ui_scale_click + 10.0 || my > screen_height() - 190.0 * ui_scale_click - 10.0;
                     let in_char_x = mx >= char_rect.0 - 30.0 && mx <= char_rect.0 + char_rect.2 + 30.0;
                     if !in_ui_band && in_char_x {
-                        // 中文模式: 克隆问候(greeting); 日文模式: 原声反应(mur001)
+                        // 中文模式: 克隆问�?greeting); 日文模式: 原声反应(mur001)
                         let active: &[(String, Sound)] = if lang == Lang::Zh { &cn_voices } else { &jp_voices };
                         if !active.is_empty() {
                             let (name, sound) = &active[voice_idx % active.len()];
                             play_voice_vol(sound, master_volume, &mut last_sound);
                             voice_idx += 1;
-                            talk_until = now + 2.0; // 发声时触发口型动画
+                            talk_until = now + 2.0; // 发声时触发口型动�?
                             if let Some((_, face, zh, jp)) = voice_meta(name) {
                                 pet.face = (*face).to_string();
                                 let text = if lang == Lang::Jp { jp.unwrap_or(zh) } else { zh };
@@ -741,7 +778,7 @@ async fn main() {
             }
             #[cfg(not(any(target_os = "android", target_env = "ohos")))]
             {
-                // 点击立绘中部(避开顶部气泡区与底部聊天控件区) → 轮播台词 + 切表情
+                // 点击立绘中部(避开顶部气泡区与底部聊天控件�? �?轮播台词 + 切表�?
                 let ui_scale_click = 1.0;
                 let in_ui_band = my < 150.0 * ui_scale_click + 10.0 || my > screen_height() - 190.0 * ui_scale_click - 10.0;
                 let in_char_x = mx >= char_rect.0 - 30.0 && mx <= char_rect.0 + char_rect.2 + 30.0;
@@ -804,7 +841,7 @@ async fn main() {
         if is_key_pressed(KeyCode::F3) {
             debug_info = !debug_info;
         }
-        // E: 快速说一句(轮播, 按当前语言); Enter: 聊天输入
+        // E: 快速说一�?轮播, 按当前语言); Enter: 聊天输入
         if is_key_pressed(KeyCode::E) {
             let active: &[(String, Sound)] = if lang == Lang::Zh { &cn_voices } else { &jp_voices };
             if !active.is_empty() {
@@ -819,12 +856,12 @@ async fn main() {
                 }
             }
         }
-        // (聊天输入已交给 lazy-ply chat_panel: 事件在 UI 帧内收集, 回复处理在立绘绘制后)
+        // (聊天输入已交�?lazy-ply chat_panel: 事件�?UI 帧内收集, 回复处理在立绘绘制后)
         if is_key_pressed(KeyCode::Escape) {
             break;
         }
 
-        // 播放回复语音(ffmpeg m4a→wav → 加载 → 播放; 仅桌面 — Android/鸿蒙无 ffmpeg, 走 TTS/兜底)
+        // 播放回复语音(ffmpeg m4a→wav �?加载 �?播放; 仅桌�?�?Android/鸿蒙�?ffmpeg, �?TTS/兜底)
         if let Some(v) = pending_voice.take() {
             #[cfg(not(any(target_os = "android", target_env = "ohos")))]
             {
@@ -836,7 +873,7 @@ async fn main() {
                     if !out.stdout.is_empty() {
                         if let Ok(s) = load_sound_from_bytes(&out.stdout).await {
                             play_voice_vol(&s, master_volume, &mut last_sound);
-                            talk_until = now + 2.0; // 发声时触发口型动画
+                            talk_until = now + 2.0; // 发声时触发口型动�?
                         }
                     }
                 }
@@ -844,13 +881,13 @@ async fn main() {
             #[cfg(any(target_os = "android", target_env = "ohos"))]
             let _ = v;
         }
-        // 播放远程 TTS 合成的丛雨克隆音色; 失败立即播放内嵌兜底语音(点击/回复必有声音)
+        // 播放远程 TTS 合成的丛雨克隆音�? 失败立即播放内嵌兜底语音(点击/回复必有声音)
         if let Some(result) = tts_result.lock().unwrap().take() {
             match result {
                 Ok(wav) => {
                     if let Ok(s) = load_sound_from_bytes(&wav).await {
                         play_voice_vol(&s, master_volume, &mut last_sound);
-                        talk_until = now + 2.0; // 发声时触发口型动画
+                        talk_until = now + 2.0; // 发声时触发口型动�?
                         println!("[tts] 播放克隆音色 {} KB", wav.len() / 1024);
                     }
                 }
@@ -869,7 +906,7 @@ async fn main() {
                 }
             }
         }
-        // TTS 超时(网络卡死)兜底: 提交回复后 tts_deadline 内无结果 → 播内嵌语音
+        // TTS 超时(网络卡死)兜底: 提交回复�?tts_deadline 内无结果 �?播内嵌语�?
         if tts_deadline > 0.0 && now > tts_deadline {
             tts_deadline = 0.0;
             if !cn_voices.is_empty() {
@@ -884,10 +921,10 @@ async fn main() {
             }
         }
 
-        // 眨眼/口型动画: 计算本次绘制用表情
-        //   - 说话中(now < talk_until): 缓慢交替 基础脸 ↔ 说话口型脸(≈2.5Hz,
+        // 眨眼/口型动画: 计算本次绘制用表�?
+        //   - 说话�?now < talk_until): 缓慢交替 基础�?�?说话口型�?�?.5Hz,
         //     说话 twin 已统一为睁眼版(39), 避免说话时眼睛高频变化像疯狂眨眼)
-        //   - 空闲: 每 2.6~4.2s 眨眼一次(人类眨眼频率 ≈3~5s, 闭眼脸 120ms)
+        //   - 空闲: �?2.6~4.2s 眨眼一�?人类眨眼频率 �?~5s, 闭眼�?120ms)
         let mut draw_face = pet.face.clone();
         if let Some((blink_twin, talk_twin)) = face_twins(&pet.face) {
             if now < talk_until {
@@ -913,9 +950,9 @@ async fn main() {
             }
         }
 
-        // 角色定位(每帧按当前屏幕尺寸计算 — 桌面=窗口, Android/WASM=屏幕, 自适应)
-        const UI_TOP_PX: f32 = 150.0;   // 气泡区高度
-        const UI_BOTTOM_PX: f32 = 190.0; // 控件区高度(按钮+输入框)
+        // 角色定位(每帧按当前屏幕尺寸计�?�?桌面=窗口, Android/WASM=屏幕, 自适应)
+        const UI_TOP_PX: f32 = 150.0;   // 气泡区高�?
+        const UI_BOTTOM_PX: f32 = 190.0; // 控件区高�?按钮+输入�?
         {
             let scr_w = screen_width();
             let scr_h = screen_height();
@@ -924,8 +961,8 @@ async fn main() {
             let char_w = sprite_w as f32 * SCALE * render_scale;
             let char_h = sprite_h as f32 * SCALE * render_scale;
             let char_x = (scr_w - char_w) / 2.0;
-            // 经验校准: 立绘实际渲染比 bbox 计算低约 6% 高度, 按比例上移
-            // 0.62: 角色中心略偏下, 靠近底部控件区(构图平衡)
+            // 经验校准: 立绘实际渲染�?bbox 计算低约 6% 高度, 按比例上�?
+            // 0.62: 角色中心略偏�? 靠近底部控件�?构图平衡)
             let char_y = UI_TOP_PX + (avail_h - char_h) * 0.62 - 0.06 * char_h;
             if frame == 0 || frame == 60 {
                 println!("角色定位[帧{}]: 缩放 {} 角色 {}x{} 屏幕 {}x{}", frame, render_scale, char_w as i32, char_h as i32, scr_w as i32, scr_h as i32);
@@ -937,7 +974,7 @@ async fn main() {
         }
         pet.draw(&draw_face);
 
-        // 台词气泡: 点击桌宠说话的台词, 显示在角色头顶上方
+        // 台词气泡: 点击桌宠说话的台�? 显示在角色头顶上�?
         if let Some((text, until)) = speech_line.take() {
             if now < until {
                 if let Some(font) = &mq_font {
@@ -947,15 +984,15 @@ async fn main() {
             }
         }
 
-        // 聊天面板(lazy-ply 组件): 气泡历史 + 快捷问题 + 输入框, 覆盖在立绘上方
+        // 聊天面板(lazy-ply 组件): 气泡历史 + 快捷问题 + 输入�? 覆盖在立绘上�?
         #[cfg(any(target_os = "android", target_env = "ohos"))]
         {
-            // Android/HarmonyOS: miniquad dpi_scale 可能返回 1.0(按物理像素渲染),
-            // 用设计宽度 400dp 推算 UI 缩放, 统一放大按钮/输入框/气泡文字到可触控尺寸
-            use demo::components::config::{Attrs, ButtonConfig, ButtonStateConfig, ChatPanelConfig, Style, TextFieldConfig};
+            // Android/HarmonyOS: miniquad dpi_scale 可能返回 1.0(按物理像素渲�?,
+            // 用设计宽�?400dp 推算 UI 缩放, 统一放大按钮/输入�?气泡文字到可触控尺寸
+            use lazy_ply::components::config::{Attrs, ButtonConfig, ButtonStateConfig, ChatPanelConfig, Style, TextFieldConfig};
             let ui_scale = (screen_width() / 400.0).clamp(1.0, 3.5);
             let mut ui = ply.begin();
-            // 键盘避让: 压缩布局高度让聊天面板上移(鸿蒙键盘弹出时)
+            // 键盘避让: 压缩布局高度让聊天面板上�?鸿蒙键盘弹出�?
             #[cfg(target_env = "ohos")]
             {
                 let kh = keyboard_height();
@@ -997,16 +1034,56 @@ async fn main() {
                 },
             );
             ui.show(|_| {}).await;
+            // [临时诊断 kb7] 每帧追加: 指针命中列表 + 输入框命中 + 焦点(追加模式, 便于看点击历史)
+            let kb_want = Id::from(chat_state.input_id);
+            let kb_focused = ui
+                .focused_element()
+                .map(|id| id == kb_want)
+                .unwrap_or(false);
+            let kb_over_input = ui.pointer_over(kb_want);
+            // 引擎自动聚焦失效时的兜底: 指针进入输入框 → 手动聚焦
+            if kb_over_input && !was_over_input {
+                ui.set_focus(chat_state.input_id);
+            }
+            was_over_input = kb_over_input;
+            if let Some(dir) = macroquad::miniquad::window::files_dir() {
+                let kb_over_ids: Vec<String> = ui
+                    .pointer_over_ids()
+                    .iter()
+                    .map(|id| format!("{:?}", id))
+                    .collect();
+                let kb_focus_raw = ui
+                    .focused_element()
+                    .map(|id| format!("{:?}", id))
+                    .unwrap_or_else(|| "None".to_string());
+                let kb_line = format!(
+                    "over_input={} focus={} raw={} over={:?}\n",
+                    kb_over_input, kb_focused, kb_focus_raw, kb_over_ids
+                );
+                use std::io::Write;
+                if let Ok(mut f) = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(std::path::Path::new(&dir).join("kb_debug.log"))
+                {
+                    let _ = f.write_all(kb_line.as_bytes());
+                }
+            }
+            // 聊天键盘: 输入框聚焦 → 唤起系统 IME(悬浮窗模式)
+            if kb_focused != kb_shown {
+                kb_shown = kb_focused;
+                macroquad::miniquad::window::show_keyboard(kb_focused);
+            }
         }
         #[cfg(not(any(target_os = "android", target_env = "ohos")))]
         {
-            // 桌面/WASM: 浅色和风背景上的高对比样式(深紫按钮/白底输入框/不透明气泡)
-            use demo::components::config::{Attrs, ButtonConfig, ButtonStateConfig, ChatPanelConfig, Style, TextFieldConfig};
+            // 桌面/WASM: 浅色和风背景上的高对比样�?深紫按钮/白底输入�?不透明气泡)
+            use lazy_ply::components::config::{Attrs, ButtonConfig, ButtonStateConfig, ChatPanelConfig, Style, TextFieldConfig};
             let mut ui = ply.begin();
             let _g = Style::with(
                 Attrs {
                     chat_panel: Some(ChatPanelConfig {
-                        // 注意: 不设 background — 面板是全屏容器, 不透明背景会盖住立绘
+                        // 注意: 不设 background �?面板是全屏容�? 不透明背景会盖住立�?
                         bubble_font_size: Some(18),
                         user_background: Some(0x6D4A8A),
                         user_foreground: Some(0xFFFFFF),
@@ -1047,11 +1124,11 @@ async fn main() {
             );
             ui.show(|_| {}).await;
         }
-        // 音量指示条画在聊天面板之后(Android 上不被控件盖住)
+        // 音量指示条画在聊天面板之�?Android 上不被控件盖�?
         if now < vol_show_until {
             draw_volume_indicator(master_volume);
         }
-        // F3 调试面板: 语音库加载数(诊断"没声音/不读"用)
+        // F3 调试面板: 语音库加载数(诊断"没声�?不读"�?
         if debug_info {
             let info = format!(
                 "preset {}/{}\ncn {}\njp {}",
@@ -1071,25 +1148,56 @@ async fn main() {
                 );
             }
         }
-        // 统一处理输入: 聊天面板事件(快捷按钮/输入框) → 回复(气泡在下一帧显示)
+        // 统一处理输入: 聊天面板事件(快捷按钮/输入�? �?回复(气泡在下一帧显�?
         let submitted: Vec<String> = std::mem::take(&mut chat_events.borrow_mut().submitted);
         for input in submitted {
             if input.trim().is_empty() {
                 continue;
             }
-            // 语言切换快捷按钮(与 lazy-ply chat_panel 默认快捷问题一致)
-            if input == LANG_TOGGLE {
+            // 语言切换快捷按钮(中/日文案都识别)
+            if input == LANG_TOGGLE || input == LANG_TOGGLE_JP {
                 lang = if lang == Lang::Zh { Lang::Jp } else { Lang::Zh };
-                chat_state.history.push(ChatMessage::pet(&format!("(已切换为{}模式)", lang.label())));
+                apply_ui_lang(&mut chat_state, lang);
+                let msg = if lang == Lang::Jp {
+                    "(日本語モードに切り替えたよ)".to_string()
+                } else {
+                    "(已切换为中文模式)".to_string()
+                };
+                chat_state.history.push(ChatMessage::pet(&msg));
                 continue;
             }
-            // LLM 免费模型提示: 点击在浏览器打开信息页
-            if input == LLM_HINT_TEXT {
+            // LLM 免费模型提示: 点击在浏览器打开信息�? (中/日文案)
+            if input == LLM_HINT_TEXT || input == LLM_HINT_TEXT_JP {
                 open_llm_hint_page();
                 continue;
             }
+            // W2 视觉: "看看我在干嘛" → 触发 MediaProjection 截屏(Android/鸿蒙)
+            if input == VISION_QUESTION || input == VISION_QUESTION_JP {
+                #[cfg(any(target_os = "android", target_env = "ohos"))]
+                {
+                    macroquad::miniquad::window::request_screen_capture();
+                    vision_pending = true;
+                    let say = if lang == Lang::Jp {
+                        "吾輩は君の画面を見ている…"
+                    } else {
+                        "吾辈正在看你的屏幕…"
+                    };
+                    chat_state.history.push(ChatMessage::pet(say));
+                    speech_line = Some((say.to_string(), now + 3.0));
+                }
+                #[cfg(not(any(target_os = "android", target_env = "ohos")))]
+                {
+                    let say = if lang == Lang::Jp {
+                        "デスクトップではまだ画面を見られないよ、Androidで会おう"
+                    } else {
+                        "桌面端还不能看屏幕哦，去安卓上让吾辈看着你吧"
+                    };
+                    chat_state.history.push(ChatMessage::pet(say));
+                }
+                continue;
+            }
             chat_state.history.push(ChatMessage::user(&input));
-            // 预置问答: 统一匹配逻辑(否定排除 + 更长关键词优先 + 忽略标点, 见 chat::preset_match)
+            // 预置问答: 统一匹配逻辑(否定排除 + 更长关键词优�?+ 忽略标点, �?chat::preset_match)
             let preset_hit = cute_pet::chat::preset_match(&preset_kws, &input);
             if let Some(idx) = preset_hit {
                 let ans = preset_answers[idx].clone();
@@ -1104,7 +1212,7 @@ async fn main() {
                     // 角色头顶气泡同步显示回复内容
                     speech_line = Some((ans.clone(), now + 3.5));
                 } else {
-                    // 无预置语音 → 远程 TTS(失败/超时帧循环播兜底)
+                    // 无预置语�?�?远程 TTS(失败/超时帧循环播兜底)
                     tts_deadline = now + 10.0;
                     let target = tts_result.clone();
                     let tts_text = ans.clone();
@@ -1115,9 +1223,9 @@ async fn main() {
                 }
                 continue;
             }
-            // persona 回复: 按当前语言选 persona(中文语料已过滤假名)
+            // persona 回复: 按当前语言�?persona(中文语料已过滤假�?
             let persona = if lang == Lang::Zh { &persona_zh } else { &persona_jp };
-            // 多轮上下文: 取最近 10 轮(用户/丛雨, 旧→新), 让 LLM 前言搭后语
+            // 多轮上下�? 取最�?10 �?用户/丛雨, 旧→�?, �?LLM 前言搭后�?
             let history: Vec<(String, String)> = chat_state
                 .history
                 .iter()
@@ -1145,12 +1253,12 @@ async fn main() {
                         };
                         (t, Some(v))
                     }
-                    None => ("(无回应)".to_string(), None),
+                    None => ("(无回复)".to_string(), None),
                 },
             };
             chat_state.history.push(ChatMessage::pet(&text));
             last_reply = text.clone();
-            // 语料语音: 桌面 ffmpeg 播放; Android/鸿蒙无 ffmpeg 丢弃走 TTS
+            // 语料语音: 桌面 ffmpeg 播放; Android/鸿蒙�?ffmpeg 丢弃�?TTS
             let mut want_tts = true;
             if let Some(v) = voice {
                 #[cfg(not(any(target_os = "android", target_env = "ohos")))]
@@ -1162,7 +1270,7 @@ async fn main() {
                 let _ = v;
             }
             if want_tts {
-                // 远程 TTS 合成丛雨克隆音色(后台线程, 结果带成败 → 失败帧循环播兜底)
+                // 远程 TTS 合成丛雨克隆音色(后台线程, 结果带成�?�?失败帧循环播兜底)
                 tts_deadline = now + 10.0;
                 let target = tts_result.clone();
                 let tts_text = text.clone();
@@ -1173,7 +1281,61 @@ async fn main() {
             }
         }
 
-        // 验证模式: 渲染 2 秒后截图并退出
+        // 验证模式: 渲染 2 秒后截图并退�?
+        // W2 视觉: 配置好视觉模型后启动自动申请一次截屏授权(连续"看着你")
+        #[cfg(target_os = "android")]
+        if !vision_auto_done && now > 1.0 && !vlm_cfg.api_key.is_empty() {
+            vision_auto_done = true;
+            macroquad::miniquad::window::request_screen_capture();
+            vision_pending = true;
+            let say = if lang == Lang::Jp {
+                "吾輩は君が何をしているのか見てみたい…"
+            } else {
+                "吾辈想看看你在做什么…"
+            };
+            speech_line = Some((say.to_string(), now + 3.0));
+            chat_state.history.push(ChatMessage::pet(say));
+        }
+
+        // W2 视觉: 轮询新截屏帧 → 视觉模型分析 → 丛雨念出来(按钮触发或 90s 一次)
+        #[cfg(target_os = "android")]
+        if let Some(jpeg) = macroquad::miniquad::window::take_screen_frame() {
+            let should = vision_pending || now - vision_last > 90.0;
+            vision_pending = false;
+            if should {
+                vision_last = now;
+                let tx = vision_tx.clone();
+                let cfg = vlm_cfg.clone();
+                std::thread::spawn(move || {
+                    let msg = match cute_pet::chat::analyze_screen(&jpeg, &cfg, lang) {
+                        Ok(t) => t,
+                        Err(e) => {
+                            let prefix = if lang == Lang::Jp {
+                                "吾輩は君の画面を見たけど、視覚モデルがまだ設定されていない"
+                            } else {
+                                "吾辈看到了你的屏幕，但视觉模型还没配好"
+                            };
+                            format!("{}({})", prefix, e)
+                        }
+                    };
+                    let _ = tx.send(msg);
+                });
+            }
+        }
+        if let Ok(msg) = vision_rx.try_recv() {
+            chat_state.history.push(ChatMessage::pet(&msg));
+            last_reply = msg.clone();
+            speech_line = Some((msg.clone(), now + 6.0));
+            // 语音: 走远程 TTS, 失败帧循环播兜底
+            tts_deadline = now + 10.0;
+            let target = tts_result.clone();
+            let tts_text = msg;
+            std::thread::spawn(move || {
+                let result = cute_pet::chat::synthesize_remote(&tts_text).map_err(|e| e.to_string());
+                *target.lock().unwrap() = Some(result);
+            });
+        }
+
         if verify {
             frame += 1;
             if frame == 120 {
@@ -1186,20 +1348,95 @@ async fn main() {
     }
 }
 
-// ---------------- 鸿蒙宿主壳入口(staticlib) ----------------
-// 同一 main.rs 同时作为 [lib] cute_pet_host 编译(crate-type=["staticlib"])。
+// ---------------- 鸿蒙宿主壳入�?staticlib) ----------------
+// 同一 main.rs 同时作为 [lib] cute_pet_host 编译(crate-type=["staticlib"])�?
 // 宿主(ArkTS XComponent + C++ NAPI)加载 .so 后调 pet_entry() 启动渲染线程:
-//   pet_entry() → main()(macroquad 宏生成, 即 Window::from_config)
-//   → miniquad-ply::window::start → native::ohos::run → spawn 渲染线程(忙等 surface)
-//   → 返回; 宿主随后把 XComponent surface 经 NAPI 调 ohos_surface_created() 喂给渲染线程。
+//   pet_entry() �?main()(macroquad 宏生�? �?Window::from_config)
+//   �?miniquad-ply::window::start �?native::ohos::run �?spawn 渲染线程(忙等 surface)
+//   �?返回; 宿主随后�?XComponent surface �?NAPI �?ohos_surface_created() 喂给渲染线程�?
+// W2 视觉模型配置加载(3 级回退):
+//   1) Android {filesDir}/vlm_config.json(调试用 adb run-as 注入)
+//   2) 构建期内嵌资产 assets/vlm_config.json(发布 APK 开箱即用)
+//   3) 环境变量 PET_VLM_BASE_URL / PET_VLM_API_KEY / PET_VLM_MODEL(桌面)
+// 字段: base_url / api_key / model(OpenAI 兼容端点)
+fn parse_vlm_json(s: &str) -> Option<cute_pet::chat::VlmConfig> {
+    use cute_pet::chat::VlmConfig;
+    let v = serde_json::from_str::<serde_json::Value>(s).ok()?;
+    let get = |k: &str, d: &str| {
+        v.get(k)
+            .and_then(|x| x.as_str())
+            .map(|x| x.to_string())
+            .unwrap_or_else(|| d.to_string())
+    };
+    let api_key = v
+        .get("api_key")
+        .and_then(|x| x.as_str())
+        .map(|x| x.to_string())
+        .unwrap_or_default();
+    if api_key.is_empty() {
+        return None;
+    }
+    Some(VlmConfig {
+        base_url: get("base_url", "https://open.bigmodel.cn/api/paas/v4"),
+        api_key,
+        model: get("model", "glm-4v-flash"),
+    })
+}
+
+#[cfg(target_os = "android")]
+fn load_vlm_config() -> cute_pet::chat::VlmConfig {
+    use cute_pet::chat::VlmConfig;
+    // 1) 运行时注入
+    if let Some(dir) = macroquad::miniquad::window::files_dir() {
+        let p = std::path::Path::new(&dir).join("vlm_config.json");
+        if let Ok(s) = std::fs::read_to_string(&p) {
+            if let Some(cfg) = parse_vlm_json(&s) {
+                return cfg;
+            }
+        }
+    }
+    // 2) 内嵌资产
+    if let Ok(bytes) = load_asset("vlm_config.json") {
+        if let Ok(s) = String::from_utf8(bytes) {
+            if let Some(cfg) = parse_vlm_json(&s) {
+                return cfg;
+            }
+        }
+    }
+    // 3) 环境变量
+    VlmConfig::from_env().unwrap_or_else(|_| VlmConfig {
+        base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
+        api_key: String::new(),
+        model: "glm-4v-flash".into(),
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn load_vlm_config() -> cute_pet::chat::VlmConfig {
+    use cute_pet::chat::VlmConfig;
+    // 桌面/WASM: 内嵌资产优先(与发布 APK 行为一致), 再环境变量
+    if let Ok(bytes) = load_asset("vlm_config.json") {
+        if let Ok(s) = String::from_utf8(bytes) {
+            if let Some(cfg) = parse_vlm_json(&s) {
+                return cfg;
+            }
+        }
+    }
+    VlmConfig::from_env().unwrap_or_else(|_| VlmConfig {
+        base_url: "https://open.bigmodel.cn/api/paas/v4".into(),
+        api_key: String::new(),
+        model: "glm-4v-flash".into(),
+    })
+}
+
 #[cfg(target_env = "ohos")]
 #[no_mangle]
 pub extern "C" fn pet_entry() {
     main();
 }
 
-// 键盘高度(px, 0=隐藏): ArkTS keyboardHeightChange → petKeyboard → 此处。
-// 聊天面板布局据此上移避开软键盘(surface 保持全尺寸, 避免 resize 渲染 bug)。
+// 键盘高度(px, 0=隐藏): ArkTS keyboardHeightChange �?petKeyboard �?此处�?
+// 聊天面板布局据此上移避开软键�?surface 保持全尺�? 避免 resize 渲染 bug)�?
 #[cfg(target_env = "ohos")]
 static KEYBOARD_H: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
 

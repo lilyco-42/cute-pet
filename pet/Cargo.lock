@@ -622,11 +622,12 @@ dependencies = [
 
 [[package]]
 name = "cute-pet"
-version = "0.1.1"
+version = "0.2.1"
 dependencies = [
  "anyhow",
- "demo",
+ "base64 0.23.1",
  "getrandom 0.2.17",
+ "lazy-ply",
  "ply-engine",
  "rust-embed",
  "serde",
@@ -648,18 +649,6 @@ name = "dasp_sample"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c87e182de0887fd5361989c677c4e8f5000cd9491d6d563161a8f3a5519fc7f"
-
-[[package]]
-name = "demo"
-version = "0.1.0"
-dependencies = [
- "fontdb",
- "log",
- "ply-engine",
- "rust-i18n",
- "serde",
- "toml",
-]
 
 [[package]]
 name = "deranged"
@@ -1278,6 +1267,18 @@ dependencies = [
  "cfg-if",
  "futures-util",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "lazy-ply"
+version = "0.1.0"
+dependencies = [
+ "fontdb",
+ "log",
+ "ply-engine",
+ "rust-i18n",
+ "serde",
+ "toml",
 ]
 
 [[package]]
