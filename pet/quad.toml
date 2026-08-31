@@ -1,0 +1,6 @@
+# cargo-quad-apk / plyx 扩展配置 (见 preprocessor.rs / util.rs / build.rs):
+# - java_files: 额外 Java 源(必须在包根 java/ 目录下), 与 miniquad 的
+#   MainActivity/QuadNative 一起编译(javac -source 1.8)
+# 注: ScreenCaptureService 的 manifest 声明走 Cargo.toml
+#     [package.metadata.android.service](cargo-quad-apk-ply 原生支持)
+java_files = ["java/ScreenCaptureService.java"]

@@ -39,3 +39,66 @@ pet/assets/vlm_config.json
 # lazy-ply 现在是 junction -> D:/Code/lazy-ply (canonical 独立 git 仓库), 不再纳入 cute-pet 版本控制
 /lazy-ply/
 
+
+# ---- 本地素材/历史/截图(勿提交) ----
+*.jpeg
+*.jpg
+*.png
+*.mp4
+*.gif
+session-ses_*.md
+cs_*.py
+cs_*.mjs
+cloudstudio_main.js
+2026-*.txt
+tts_audio/
+tts_audio_lanque/
+voice_index.csv
+sovits_backup/
+murasame*.list
+murasame_sovits_data.tar.gz
+characters/
+analyze_style.py
+to_pet.py
+extract_dialog.py
+tts_audio_lanque/
+flinger.txt
+actionlint.tar.gz
+zcode-dump/
+.dsh-vision-toolkit/
+
+# ---- AI-agent / OMA 系统配置(勿提交) ----
+.agents/
+.claude/
+.opencode/
+.dsh-vision-toolkit/
+
+# ---- 其它子项目/素材目录 ----
+lyco-engine/
+lyco_chat/
+platform_check/
+tools/
+characters/
+
+# ---- pet 下构建产物/素材 ----
+pet/examples/
+pet/index.html
+pet/release/
+pet/gdi_desktop/
+pet/vendor/miniquad-ply/.github/
+pet/vendor/quad-snd/.github/
+pet/*.png
+pet/*.mp4
+pet/*.tar.gz
+
+# ---- 零散素材/数据文件 ----
+*.ttf
+*.zip
+dialog_feihua.txt
+dialog_lanque.txt
+lanque_messages.json
+process_whitelist.json
+tmp_liteapp.json
+tts_service.py
+xc_guide.md
+/assets/
