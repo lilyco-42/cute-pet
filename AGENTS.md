@@ -11,6 +11,11 @@
 |---|---|
 | **鸿蒙开发手册(agent 可执行)** | [`docs/HARMONYOS_RUST_AGENT.md`](docs/HARMONYOS_RUST_AGENT.md) |
 | 鸿蒙坑详解 | `pet/docs/harmonyos-rust.md` |
+| **已验证问题解决手册** | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
+| **CloudStudio GPT-SoVITS 丛雨合成** | [`docs/cloudstudio-tts-guide.md`](docs/cloudstudio-tts-guide.md) |
+| CloudStudio 认证/JPS | [`docs/cloudstudio-access.md`](docs/cloudstudio-access.md) |
+| Android 悬浮窗视觉链路 | [`docs/lyco-android-overlay-vision.md`](docs/lyco-android-overlay-vision.md) |
+| cargo-quad-apk 工具链 fork | [`docs/toolchain-cargo-quad-apk-fork.md`](docs/toolchain-cargo-quad-apk-fork.md) |
 | 项目进度/环境备忘 | `progress.md` |
 | GDI 桌面低内存版 | `pet/gdi_desktop/`(独立小项目) |
 
