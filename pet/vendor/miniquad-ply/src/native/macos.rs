@@ -213,6 +213,8 @@ impl MacosDisplay {
             SetImeEnabled(..) => {
                 // IME enable/disable not implemented for macOS yet
             }
+            // W2 视觉: ScreenCapture 是 Android MediaProjection 专属; 桌面端无需采集, no-op。
+            ScreenCapture => {}
         }
     }
 }

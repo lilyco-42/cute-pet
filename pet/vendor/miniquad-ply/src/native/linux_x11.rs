@@ -424,6 +424,8 @@ impl X11Display {
                 SetImeEnabled(..) => {
                     // IME enable/disable not implemented for X11 yet
                 }
+                // W2 视觉: ScreenCapture 是 Android MediaProjection 专属; 桌面端无需采集, no-op。
+                ScreenCapture => {}
             }
         }
     }
