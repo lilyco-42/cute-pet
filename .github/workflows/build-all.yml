@@ -62,8 +62,13 @@ jobs:
       - name: Set Android build target
         run: |
           sed -i 's|build_targets = \[.*\]|build_targets = ["${{ matrix.target }}"]|' Cargo.toml
-      - name: Install plyx
-        run: cargo install plyx 2>/dev/null || cargo install plyx --locked
+      - name: Install plyx + fork cargo-quad-apk (supports metadata.android.service)
+        run: |
+          # crates.io cargo-quad-apk/plyx 不支持 [[package.metadata.android.service]]
+          # (ScreenCaptureService 无法生成 → javac cannot find symbol)。
+          # 用 fork TheRedDeveloper/cargo-quad-apk-ply(支持 service, 本地一致)。
+          cargo install --git https://github.com/TheRedDeveloper/cargo-quad-apk-ply || cargo install --git https://github.com/TheRedDeveloper/cargo-quad-apk-ply --locked
+          cargo install plyx 2>/dev/null || cargo install plyx --locked
       - name: Build APK
         run: plyx apk --native
       - name: Upload APK
