@@ -69,7 +69,9 @@ jobs:
           # 用 fork TheRedDeveloper/cargo-quad-apk-ply(支持 service, 本地一致), 直接用 cargo quad-apk build。
           cargo install --git https://github.com/TheRedDeveloper/cargo-quad-apk-ply || cargo install --git https://github.com/TheRedDeveloper/cargo-quad-apk-ply --locked
       - name: Build APK (fork cargo-quad-apk, supports service)
-        run: cargo quad-apk build
+        run: |
+          export NDK_HOME="${ANDROID_HOME}/ndk/25.2.9519653"
+          cargo quad-apk build
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
