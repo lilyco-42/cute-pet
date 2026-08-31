@@ -22,6 +22,8 @@ getrandom = { version = "0.2", features = ["js"] }
 # 仿 android; 原 registry 版无 ohos 后端)。其它平台行为不变。
 [patch.crates-io]
 miniquad-ply = { path = "vendor/miniquad-ply" }
+# macroquad-ply: 修复字符输入队列 LIFO 逆序 bug(多字符输入被反转, issue#1)
+macroquad-ply = { path = "vendor/macroquad-ply" }
 # quad-snd(宏 quad 音频)在 ohos 下走 noop 桩(鸿蒙音频后续用 OH_AudioRenderer 单独接)
 quad-snd = { path = "vendor/quad-snd" }
 

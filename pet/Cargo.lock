@@ -1331,8 +1331,6 @@ checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 [[package]]
 name = "macroquad-ply"
 version = "0.4.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b6f76faf57040e43b597597aac7a33c1ba477ffcc369402118a02a7fa61dabf"
 dependencies = [
  "fontdue",
  "glam",

@@ -633,14 +633,15 @@ async fn main() {
     let mut ply = Ply::<()>::new(font_asset).await;
     // 聊天面板(lazy-ply 组件): 气泡历史 + 快捷问题 + 输入�?
     let mut chat_state = ChatPanelState::default();
-    // 初始语言(PET_LANG=jp 时面板也直接日文)
-    apply_ui_lang(&mut chat_state, lang);
     // 未配�?LLM Key �?面板底部提示免费模型渠道(NVIDIA NIM / OpenRouter / 商汤)
+    // 必须先设 llm_hint 再 apply_ui_lang: apply_ui_lang 会按语言挑日文/中文文案
     chat_state.llm_hint = if std::env::var("PET_LLM_API_KEY").is_ok() {
         None
     } else {
         Some("AI 对话: 免费模型 → NVIDIA NIM · OpenRouter · 商汤 (点击查看)")
     };
+    // 初始语言(PET_LANG=jp 时面板也直接日文, 含 llm_hint 日文化)
+    apply_ui_lang(&mut chat_state, lang);
     let chat_events: Rc<RefCell<ChatPanelEvents>> = Rc::new(RefCell::new(ChatPanelEvents::default()));
     let mut pending_voice: Option<String> = None;
     // 远程 TTS 合成(丛雨克隆音色): 后台线程�?wav, 帧循环播放�?
@@ -832,7 +833,13 @@ async fn main() {
         // L: 切换中文/日文
         if is_key_pressed(KeyCode::L) {
             lang = if lang == Lang::Zh { Lang::Jp } else { Lang::Zh };
-            chat_state.history.push(ChatMessage::pet(&format!("(已切换为{})", lang.label())));
+            apply_ui_lang(&mut chat_state, lang);
+            let msg = if lang == Lang::Jp {
+                "(日本語モードに切り替えたよ)".to_string()
+            } else {
+                "(已切换为中文模式)".to_string()
+            };
+            chat_state.history.push(ChatMessage::pet(&msg));
         }
         if is_key_pressed(KeyCode::F2) {
             macroquad::texture::get_screen_data().export_png("pet_screenshot.png");
@@ -893,14 +900,17 @@ async fn main() {
                 }
                 Err(e) => {
                     eprintln!("[tts] 合成失败, 播放兜底语音: {e}");
-                    if !cn_voices.is_empty() {
-                        let (name, sound) = &cn_voices[voice_idx % cn_voices.len()];
+                    // 兜底语音按当前语言选库: 日文模式播原声(mur001), 中文模式播问候(greeting)
+                    let active: &[(String, Sound)] = if lang == Lang::Jp { &jp_voices } else { &cn_voices };
+                    if !active.is_empty() {
+                        let (name, sound) = &active[voice_idx % active.len()];
                         play_voice_vol(sound, master_volume, &mut last_sound);
                         voice_idx += 1;
                         talk_until = now + 2.0;
-                        if let Some((_, face, _zh, _jp)) = voice_meta(name) {
+                        if let Some((_, face, zh, jp)) = voice_meta(name) {
                             pet.face = (*face).to_string();
-                            speech_line = Some((last_reply.clone(), now + 3.0));
+                            let line = if lang == Lang::Jp { jp.unwrap_or(zh) } else { zh };
+                            speech_line = Some((line.to_string(), now + 3.0));
                         }
                     }
                 }
@@ -909,14 +919,17 @@ async fn main() {
         // TTS 超时(网络卡死)兜底: 提交回复�?tts_deadline 内无结果 �?播内嵌语�?
         if tts_deadline > 0.0 && now > tts_deadline {
             tts_deadline = 0.0;
-            if !cn_voices.is_empty() {
-                let (name, sound) = &cn_voices[voice_idx % cn_voices.len()];
+            // 兜底语音按当前语言选库(日文模式播原声 mur001)
+            let active: &[(String, Sound)] = if lang == Lang::Jp { &jp_voices } else { &cn_voices };
+            if !active.is_empty() {
+                let (name, sound) = &active[voice_idx % active.len()];
                 play_voice_vol(sound, master_volume, &mut last_sound);
                 voice_idx += 1;
                 talk_until = now + 2.0;
-                if let Some((_, face, zh, _jp)) = voice_meta(name) {
+                if let Some((_, face, zh, jp)) = voice_meta(name) {
                     pet.face = (*face).to_string();
-                    speech_line = Some((zh.to_string(), now + 3.0));
+                    let line = if lang == Lang::Jp { jp.unwrap_or(zh) } else { zh };
+                    speech_line = Some((line.to_string(), now + 3.0));
                 }
             }
         }
@@ -1198,7 +1211,13 @@ async fn main() {
             }
             chat_state.history.push(ChatMessage::user(&input));
             // 预置问答: 统一匹配逻辑(否定排除 + 更长关键词优�?+ 忽略标点, �?chat::preset_match)
-            let preset_hit = cute_pet::chat::preset_match(&preset_kws, &input);
+            // 仅中文模式走预置问答(预设问答/预置语音均为中文克隆, 日语模式命中会中文回应,
+            // 与所选语言不一致, issue#3)。日语模式跳过, 走下方日语 persona(回复日语)。
+            let preset_hit = if lang == Lang::Zh {
+                cute_pet::chat::preset_match(&preset_kws, &input)
+            } else {
+                None
+            };
             if let Some(idx) = preset_hit {
                 let ans = preset_answers[idx].clone();
                 chat_state.history.push(ChatMessage::pet(&ans));
@@ -1253,7 +1272,10 @@ async fn main() {
                         };
                         (t, Some(v))
                     }
-                    None => ("(无回复)".to_string(), None),
+                    None => (
+                        if lang == Lang::Jp { "(返答なし)".to_string() } else { "(无回复)".to_string() },
+                        None,
+                    ),
                 },
             };
             chat_state.history.push(ChatMessage::pet(&text));
