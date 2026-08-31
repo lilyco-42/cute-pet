@@ -5,7 +5,8 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.104"
-lazy-ply = { path = "vendor/lazy-ply" }
+# lazy-ply 已改名 Lazy-UI(GitHub: lilyco-42/Lazy-UI), 用 git 依赖(canonical, CI 直接 clone)
+lazy-ply = { git = "https://github.com/lilyco-42/Lazy-UI.git", branch = "main" }
 ply-engine = { version = "1.1", default-features = false, features = ["built-in-shaders", "audio"] }
 rust-embed = "8.12.0"
 serde = { version = "1", features = ["derive"] }
