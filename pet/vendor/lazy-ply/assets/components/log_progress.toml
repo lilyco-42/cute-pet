@@ -1,0 +1,11 @@
+# log_progress.toml — Log progress bar stylesheet (like CSS).
+# nvim-dialog style: a slim progress track pinned to the bottom.
+# The bar's height/size comes from the layout (app_layout.toml: height_percent).
+# Unset fields fall back to the M3 theme in container.rs.
+
+track_height = 6  # progress track thickness px
+gap = 4
+padding = 8
+track_color = 0xE6E0E9  # unfilled track
+fill_color = 0x6750A4   # filled track
+radius = 2.0            # track corner radius
