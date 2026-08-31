@@ -21,4 +21,10 @@ public class QuadNative {
     public native static void surfaceOnKeyDown(int keycode);
     public native static void surfaceOnKeyUp(int keycode);
     public native static void surfaceOnCharacter(int character);
+
+    // W2: 屏幕截帧(JPEG)从 Java 截屏服务喂给 Rust 视觉分析
+    public native static void onScreenFrame(byte[] jpeg);
+
+    // 聊天键盘: IME 提交的文本/退格 转发给 Rust 输入框
+    public native static void surfaceOnCommitText(String text);
 }

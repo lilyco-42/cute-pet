@@ -6,7 +6,7 @@ use crate::{
     },
 };
 
-use std::{cell::RefCell, sync::mpsc, thread, time::Duration};
+use std::{cell::RefCell, sync::{mpsc, Mutex}, thread, time::Duration};
 
 pub use crate::native::gl::{self, *};
 
@@ -59,6 +59,8 @@ enum Message {
     Character {
         character: u32,
     },
+    /// 聊天键盘: IME 提交的一段文本(转发为逐字符 char_event)
+    TextCommit(String),
     KeyDown {
         keycode: KeyCode,
     },
@@ -85,6 +87,14 @@ fn send_message(message: Message) {
 
 pub static mut ACTIVITY: ndk_sys::jobject = std::ptr::null_mut();
 static mut VM: *mut ndk_sys::JavaVM = std::ptr::null_mut();
+
+/// W2 视觉: 最近一帧屏幕截屏 JPEG(由 Java ScreenCaptureService 喂入)。
+static SCREEN_FRAME: Mutex<Option<Vec<u8>>> = Mutex::new(None);
+
+/// 取走最近一帧截屏 JPEG, 无则 None。
+pub fn take_screen_frame() -> Option<Vec<u8>> {
+    SCREEN_FRAME.lock().unwrap().take()
+}
 
 pub unsafe fn console_debug(msg: *const ::core::ffi::c_char) {
     ndk_sys::__android_log_write(
@@ -205,12 +215,20 @@ impl MainThreadState {
                 self.event_handler.touch_event(phase, touch_id, x, y);
             }
             Message::Character { character } => {
-                if let Some(character) = char::from_u32(character) {
+                if let Some(c) = char::from_u32(character) {
+                    kb_keys_log(&format!("char {:?}", c));
                     self.event_handler
-                        .char_event(character, Default::default(), false);
+                        .char_event(c, Default::default(), false);
+                }
+            }
+            Message::TextCommit(text) => {
+                kb_keys_log(&format!("commit {:?}", text));
+                for ch in text.chars() {
+                    self.event_handler.char_event(ch, Default::default(), false);
                 }
             }
             Message::KeyDown { keycode } => {
+                kb_keys_log(&format!("key_down {:?}", keycode));
                 match keycode {
                     KeyCode::LeftShift | KeyCode::RightShift => self.keymods.shift = true,
                     KeyCode::LeftControl | KeyCode::RightControl => self.keymods.ctrl = true,
@@ -222,6 +240,7 @@ impl MainThreadState {
                     .key_down_event(keycode, self.keymods, false);
             }
             Message::KeyUp { keycode } => {
+                kb_keys_log(&format!("key_up {:?}", keycode));
                 match keycode {
                     KeyCode::LeftShift | KeyCode::RightShift => self.keymods.shift = false,
                     KeyCode::LeftControl | KeyCode::RightControl => self.keymods.ctrl = false,
@@ -286,6 +305,11 @@ impl MainThreadState {
             }
             SetImeEnabled(..) => {
                 // IME enable/disable not applicable on Android
+            }
+            ScreenCapture => unsafe {
+                // W2: 让 Java 侧走 MediaProjection 授权 + 启动截屏服务
+                let env = attach_jni_env();
+                ndk_utils::call_void_method!(env, ACTIVITY, "startScreenCapture", "()V");
             }
             _ => {}
         }
@@ -673,6 +697,106 @@ extern "C" fn Java_quad_1native_QuadNative_surfaceOnCharacter(
     send_message(Message::Character {
         character: character as u32,
     });
+}
+
+#[no_mangle]
+extern "C" fn Java_quad_1native_QuadNative_onScreenFrame(
+    env: *mut ndk_sys::JNIEnv,
+    _: ndk_sys::jobject,
+    bytes: ndk_sys::jbyteArray,
+) {
+    unsafe {
+        if bytes.is_null() {
+            return;
+        }
+        let get_len = (**env).GetArrayLength.unwrap();
+        let len = get_len(env, bytes);
+        if len <= 0 {
+            return;
+        }
+        let get_elems = (**env).GetByteArrayElements.unwrap();
+        let elems = get_elems(env, bytes, std::ptr::null_mut());
+        if elems.is_null() {
+            return;
+        }
+        let mut buf = vec![0u8; len as usize];
+        std::ptr::copy_nonoverlapping(elems as *const u8, buf.as_mut_ptr(), len as usize);
+        (**env).ReleaseByteArrayElements.unwrap()(env, bytes, elems, ndk_sys::JNI_ABORT as i32);
+        *SCREEN_FRAME.lock().unwrap() = Some(buf);
+    }
+}
+
+/// 聊天键盘: IME commitText → 逐字符转发给渲染线程(输入框)。
+#[no_mangle]
+extern "C" fn Java_quad_1native_QuadNative_surfaceOnCommitText(
+    env: *mut ndk_sys::JNIEnv,
+    _: ndk_sys::jobject,
+    text: ndk_sys::jstring,
+) {
+    unsafe {
+        if text.is_null() {
+            return;
+        }
+        let s = ndk_utils::get_utf_str!(env, text);
+        send_message(Message::TextCommit(s));
+    }
+}
+
+/// [临时诊断 kb9] 按键事件流日志(定位悬浮窗输入 bug, 验证后移除)
+fn kb_keys_log(line: &str) {
+    use std::sync::OnceLock;
+    static DIR: OnceLock<Option<String>> = OnceLock::new();
+    let dir = DIR.get_or_init(|| files_dir());
+    if let Some(dir) = dir {
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(std::path::Path::new(dir).join("kb_keys.log"))
+        {
+            use std::io::Write;
+            let _ = writeln!(f, "{}", line);
+        }
+    }
+}
+
+/// Android 应用内部文件目录(absolute path), 供 Rust 侧读写运行时配置。
+pub fn files_dir() -> Option<String> {
+    unsafe {
+        let env = attach_jni_env();
+        let get_class = (**env).GetObjectClass.unwrap();
+        let get_method = (**env).GetMethodID.unwrap();
+        let call_obj = (**env).CallObjectMethod.unwrap();
+
+        let cls = get_class(env, ACTIVITY);
+        let mid = get_method(
+            env,
+            cls,
+            b"getFilesDir\0".as_ptr() as _,
+            b"()Ljava/io/File;\0".as_ptr() as _,
+        );
+        if mid.is_null() {
+            return None;
+        }
+        let file = call_obj(env, ACTIVITY, mid);
+        if file.is_null() {
+            return None;
+        }
+        let fcls = get_class(env, file);
+        let amid = get_method(
+            env,
+            fcls,
+            b"getAbsolutePath\0".as_ptr() as _,
+            b"()Ljava/lang/String;\0".as_ptr() as _,
+        );
+        if amid.is_null() {
+            return None;
+        }
+        let str = call_obj(env, file, amid);
+        if str.is_null() {
+            return None;
+        }
+        Some(ndk_utils::get_utf_str!(env, str))
+    }
 }
 
 unsafe fn set_full_screen(env: *mut ndk_sys::JNIEnv, fullscreen: bool) {

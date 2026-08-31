@@ -83,6 +83,8 @@ pub(crate) enum Request {
     ShowKeyboard(bool),
     SetImePosition { x: i32, y: i32 },
     SetImeEnabled(bool),
+    /// W2: 请求 Java 侧启动 MediaProjection 授权 + 截屏服务(Android)
+    ScreenCapture,
 }
 
 pub trait Clipboard: Send + Sync {

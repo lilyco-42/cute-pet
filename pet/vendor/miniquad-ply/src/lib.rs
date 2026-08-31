@@ -383,6 +383,51 @@ pub mod window {
         }
     }
 
+    /// W2: 请求 Android MediaProjection 屏幕捕获(触发授权 + 截屏服务)。
+    /// 其它平台为 no-op。
+    pub fn request_screen_capture() {
+        let d = native_display().lock().unwrap();
+        #[cfg(target_os = "android")]
+        {
+            (d.native_requests)(native::Request::ScreenCapture);
+        }
+
+        #[cfg(not(target_os = "android"))]
+        {
+            let _ = d.native_requests.send(native::Request::ScreenCapture);
+        }
+    }
+
+    /// W2: 取走最近一帧截屏 JPEG(由 Java ScreenCaptureService 喂入)。
+    /// 仅 Android 有实现, 其它平台恒为 None。
+    pub fn take_screen_frame() -> Option<Vec<u8>> {
+        #[cfg(target_os = "android")]
+        {
+            return crate::native::android::take_screen_frame();
+        }
+
+        #[cfg(not(target_os = "android"))]
+        {
+            let _ = ();
+            None
+        }
+    }
+
+    /// W2: Android 应用内部文件目录(absolute path), 供运行时配置
+    /// (如 push `vlm_config.json` 注入视觉模型 key)。仅 Android 有实现。
+    pub fn files_dir() -> Option<String> {
+        #[cfg(target_os = "android")]
+        {
+            return crate::native::android::files_dir();
+        }
+
+        #[cfg(not(target_os = "android"))]
+        {
+            let _ = ();
+            None
+        }
+    }
+
     /// Set the position of the IME candidate window.
     /// The position is in window client coordinates (pixels).
     /// This should be called when the text cursor moves to keep the IME

@@ -318,6 +318,87 @@ pub fn synthesize_remote(_text: &str) -> anyhow::Result<Vec<u8>> {
     anyhow::bail!("WASM 无网络 TTS")
 }
 
+/// W2 视觉模型配置(OpenAI 兼容端点)。
+#[derive(Clone)]
+pub struct VlmConfig {
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+}
+
+impl VlmConfig {
+    /// 从环境变量解析(PET_VLM_BASE_URL / PET_VLM_API_KEY / PET_VLM_MODEL)。
+    /// Android 上 env 为空, 请用 `{filesDir}/vlm_config.json` 注入(见 main.rs)。
+    pub fn from_env() -> anyhow::Result<VlmConfig> {
+        Ok(VlmConfig {
+            base_url: std::env::var("PET_VLM_BASE_URL")
+                .unwrap_or_else(|_| "https://open.bigmodel.cn/api/paas/v4".into()),
+            api_key: std::env::var("PET_VLM_API_KEY")
+                .map_err(|_| anyhow::anyhow!("PET_VLM_API_KEY 未配置"))?,
+            model: std::env::var("PET_VLM_MODEL").unwrap_or_else(|_| "glm-4v-flash".into()),
+        })
+    }
+}
+
+/// W2 视觉: 把截屏 JPEG 交给云端视觉模型(OpenAI 兼容, 如 NVIDIA NIM /
+/// 智谱 GLM-4V-Flash / 通义 Qwen-VL), 返回一句自然的中文/日文描述
+/// (按 `lang` 输出对应语言)。仅非 WASM。
+#[cfg(not(target_arch = "wasm32"))]
+pub fn analyze_screen(jpeg: &[u8], cfg: &VlmConfig, lang: Lang) -> anyhow::Result<String> {
+    use base64::Engine as _;
+    if cfg.api_key.is_empty() {
+        anyhow::bail!("视觉模型未配置(缺 api_key)");
+    }
+    let prompt = if lang == Lang::Jp {
+        "あなたは主人のスマホ/PCを見ている小さなデスクトップペット。\
+         画面に何が写っているか(ゲーム/アプリ/内容)を日本語で1〜2文で\
+         可愛く簡潔に説明してください。60文字以内。"
+    } else {
+        "你是一只正在看主人玩手机/电脑的小桌宠。用一两句中文自然简短地\
+         描述屏幕上在做什么(游戏/应用/画面内容)，语气可爱一点，不超过60字。"
+    };
+    let b64 = base64::engine::general_purpose::STANDARD.encode(jpeg);
+    let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
+    let body = json!({
+        "model": cfg.model,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": format!("data:image/jpeg;base64,{}", b64)}},
+                {"type": "text", "text": prompt}
+            ]
+        }],
+        "temperature": 0.9
+    });
+    let mut resp = ureq::post(&url)
+        .header("Authorization", &format!("Bearer {}", cfg.api_key))
+        .header("Content-Type", "application/json")
+        .send_json(&body)?;
+    let raw = resp.body_mut().read_to_string()?;
+    let value: serde_json::Value = serde_json::from_str(&raw)?;
+    let text = value["choices"][0]["message"]["content"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("VLM 响应无 content"))?
+        .trim()
+        .to_string();
+    // 限制长度: 防止超长回复撑爆悬浮窗聊天面板/气泡
+    const MAX_LEN: usize = 60;
+    let n = text.chars().count();
+    Ok(if n > MAX_LEN {
+        let mut s: String = text.chars().take(MAX_LEN).collect();
+        s.push('…');
+        s
+    } else {
+        text
+    })
+}
+
+/// WASM 桩: 无网络 VLM。
+#[cfg(target_arch = "wasm32")]
+pub fn analyze_screen(_jpeg: &[u8], _cfg: &VlmConfig, _lang: Lang) -> anyhow::Result<String> {
+    anyhow::bail!("WASM 无网络 VLM")
+}
+
 /// 简单 UTF-8 百分号编码(保留 ASCII 字母数字, 编码其余字节)。
 fn urlencode(s: &str) -> String {
     let mut out = String::new();
@@ -337,6 +418,43 @@ fn urlencode(s: &str) -> String {
 pub fn has_kana(text: &str) -> bool {
     text.chars().any(|c| matches!(c, '\u{3040}'..='\u{30ff}'))
 }
+
+// ---------------- 语音元数据与聊天常量 ----------------
+
+/// 语音 → (表情, 中文台词, 日文台词[可选]) 映射表。
+/// 每条语音: (文件名, 表情face, 中文台词, 日文台词)
+/// 表情可用 face id: 01默认 02微笑 03发懵 04惊讶 13困扰 14生气 19孩子气 20/21极度不满
+/// 想要「哪句台词配哪个表情」→ 直接改第二列; 想改点击显示的字 → 改第三/四列。
+pub const VOICE_META: &[(&str, &str, &str, Option<&str>)] = &[
+    // ---- 日文原声反应音效(mur001_*, voice/ 下 ogg) ----
+    ("mur001_013", "02", "请多关照了哦，主人", Some("よろしく頼むぞ、ご主人")),
+    ("mur001_005", "01", "吾辈名为丛雨", Some("吾輩の名前はムラサメ")),
+    ("mur001_010", "13", "这样你能稍微冷静点听我说了吗？", Some("これで少しは落ち着いて話を聞く気になったか？")),
+    ("mur001_002", "01", "我在这边，这边", Some("こっちだ、こっち")),
+    ("mur001_007", "13", "没必要复仇，丛雨丸马上就会恢复", Some("折れた程度で復讐する必要などない")),
+    // ---- 中文克隆问候(greeting_XX, voice/greeting/ 下 wav) ----
+    ("greeting_01", "02", "你好呀，吾辈是丛雨！", None),
+    ("greeting_02", "02", "早上好，主人！", None),
+    ("greeting_03", "02", "中午好，今天也要加油哦！", None),
+    ("greeting_04", "02", "晚上好，吾辈一直在等着你。", None),
+    ("greeting_05", "02", "辛苦了，吾辈给你揉揉肩！", None),
+    ("greeting_06", "02", "再见啦，下次再来找吾辈玩！", None),
+    ("greeting_07", "02", "你回来啦，吾辈好想你！", None),
+    ("greeting_08", "13", "别熬夜啦，要注意身体！", None),
+    ("greeting_09", "03", "今天心情怎么样？", None),
+    ("greeting_10", "19", "吾辈最喜欢你了！", None),
+];
+
+/// 按文件名查语音元数据。
+pub fn voice_meta(name: &str) -> Option<&'static (&'static str, &'static str, &'static str, Option<&'static str>)> {
+    VOICE_META.iter().find(|(n, _, _, _)| *n == name)
+}
+
+/// 聊天面板的「语言切换」快捷按钮文案(与 lazy-ply chat_panel 默认快捷问题一致)。
+pub const LANG_TOGGLE: &str = "🌐 切换语言";
+
+/// 聊天面板底部的 LLM 免费模型提示(点击打开浏览器看渠道列表)。
+pub const LLM_HINT_TEXT: &str = "AI 对话: 免费模型 → NVIDIA NIM · OpenRouter · 商汤 (点击查看)";
 
 /// 把日文台词翻译成中文(带丛雨口吻)。配置了 PET_LLM_API_KEY 才生效;
 /// 未配置或请求失败返回 None(调用方回退显示原文)。
