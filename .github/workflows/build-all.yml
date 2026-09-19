@@ -54,11 +54,23 @@ jobs:
           targets: ${{ matrix.target }}
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # 2026-09-15 起 Google 把废弃的 `tools` 包从仓库索引里移除, 而本 action
+          # 的默认 packages 仍是 "tools platform-tools", sdkmanager 找不到 tools
+          # 就直接 exit 1 —— 编译还没开始 job 就红了。显式给 packages 绕开默认值。
+          # 上游: android-actions/setup-android#537
+          packages: platform-tools
       - name: Install Android NDK r25 (required by plyx)
         run: |
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-            "ndk;25.2.9519653" \
-            --sdk_root=$ANDROID_HOME
+          # 新版 runner 镜像的 cmdline-tools 目录直接用版本号命名(如 16.0), 不再有
+          # latest 这一份, 硬编码 cmdline-tools/latest 会 No such file。取实际那份。
+          SDKMANAGER="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | head -1)"
+          echo "sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses --sdk_root="$ANDROID_HOME" >/dev/null 2>&1 || true
+          # Cargo.toml 里 android_version/target_sdk_version = 36, 故一并装 platform 与
+          # build-tools(aapt2 在 build-tools 里), 不再依赖镜像预装的版本。
+          "$SDKMANAGER" --sdk_root="$ANDROID_HOME" \
+            "platforms;android-36" "build-tools;36.0.0" "ndk;25.2.9519653"
       - name: Set Android build target
         run: |
           sed -i 's|build_targets = \[.*\]|build_targets = ["${{ matrix.target }}"]|' Cargo.toml
