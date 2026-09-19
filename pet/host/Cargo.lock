@@ -625,8 +625,9 @@ name = "cute-pet"
 version = "0.2.1"
 dependencies = [
  "anyhow",
- "demo",
+ "base64 0.23.1",
  "getrandom 0.2.17",
+ "lazy-ply",
  "ply-engine",
  "rust-embed",
  "serde",
@@ -638,14 +639,7 @@ dependencies = [
 name = "cute-pet-host"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "cute-pet",
- "demo",
- "ply-engine",
- "rust-embed",
- "serde",
- "serde_json",
- "ureq",
 ]
 
 [[package]]
@@ -662,18 +656,6 @@ name = "dasp_sample"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c87e182de0887fd5361989c677c4e8f5000cd9491d6d563161a8f3a5519fc7f"
-
-[[package]]
-name = "demo"
-version = "0.1.0"
-dependencies = [
- "fontdb",
- "log",
- "ply-engine",
- "rust-i18n",
- "serde",
- "toml",
-]
 
 [[package]]
 name = "deranged"
@@ -1296,6 +1278,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "lazy-ply"
+version = "0.2.0"
+source = "git+https://github.com/lilyco-42/Lazy-UI.git?branch=main#30213c22ad21fe5624dc986fdb139eb3e80642f6"
+dependencies = [
+ "fontdb",
+ "log",
+ "ply-engine",
+ "rust-i18n",
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "lewton"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1345,8 +1340,6 @@ checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 [[package]]
 name = "macroquad-ply"
 version = "0.4.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b6f76faf57040e43b597597aac7a33c1ba477ffcc369402118a02a7fa61dabf"
 dependencies = [
  "fontdue",
  "glam",

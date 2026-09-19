@@ -4,25 +4,25 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-# 鸿蒙宿主壳静态库: include pet/src/main.rs, 导出 pet_entry() 启动渲染线程。
-# ArkTS XComponent + C++ NAPI 壳链接本库(见 ../host_napi/ 与 docs)。
+# 鸿蒙宿主壳静态库: 链接桌宠 lib, 导出 pet_entry() 启动渲染循环。
+# ArkTS XComponent + C++ NAPI 壳链接本库(见 ../host_app/ 与 docs)。
+#
+# 依赖只有 cute-pet —— 渲染/资产/聊天全在 lib 里, 本壳只负责导出 C 符号。
+# 旧实现是 `#[path = "../../src/main.rs"] mod app;` 把二进制 crate 的 main.rs
+# 整个 include 进来, 于是还要在这里复制一整份依赖树; 其中
+# `demo = { path = "../../lazy-ply" }` 指向本机 junction(仓库里没有), 且包名
+# 仍是改名前的 demo(main.rs 里写的是 `use lazy_ply::...`), 干净 clone 下
+# 必然构建失败。改依赖 lib 后这两个问题一起消失。
 [lib]
 crate-type = ["staticlib"]
 
 [dependencies]
-anyhow = "1.0.104"
-demo = { path = "../../lazy-ply" }
-ply-engine = { version = "1.1", default-features = false, features = ["built-in-shaders", "audio"] }
-rust-embed = "8.12.0"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-# chat/chatlog 共用模块(桌宠 lib)
 cute-pet = { path = ".." }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ureq = { version = "3.4.0", features = ["json"] }
-
-# 与 pet 一致: 本地 vendored miniquad-ply(ohos backend) + quad-snd(ohos 音频桩)
+# 本 crate 是独立根(不是 workspace 成员), [patch.crates-io] 必须在此声明,
+# 不会从 cute-pet 继承 —— 三个都要齐。缺 macroquad-ply 时鸿蒙版拿不到
+# 字符输入队列 LIFO 逆序的修复(issue#1), 和桌面版编出不同依赖树。
 [patch.crates-io]
 miniquad-ply = { path = "../vendor/miniquad-ply" }
+macroquad-ply = { path = "../vendor/macroquad-ply" }
 quad-snd = { path = "../vendor/quad-snd" }
