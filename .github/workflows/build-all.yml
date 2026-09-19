@@ -422,12 +422,26 @@ jobs:
       - name: Build (native ELF)
         run: cargo build --target ${{ matrix.target }} --release
 
+      # pet/host 是鸿蒙 staticlib(NAPI 壳链接它)。此前它完全不在 CI 里 ——
+      # 所以 `demo = { path = "../../lazy-ply" }` 指向本机 junction 这件事
+      # 断了很久也没被发现。加进来, 以后改 lib 不会再静默搞坏鸿蒙线。
+      - name: Build HarmonyOS host staticlib (pet/host)
+        working-directory: pet/host
+        run: cargo build --target ${{ matrix.target }} --release
+
       - name: Upload native artifact
         uses: actions/upload-artifact@v4
         with:
           name: harmony-${{ matrix.target }}
           path: pet/target/${{ matrix.target }}/release/cute-pet
           if-no-files-found: warn
+
+      - name: Upload host staticlib
+        uses: actions/upload-artifact@v4
+        with:
+          name: harmony-host-${{ matrix.target }}
+          path: pet/host/target/${{ matrix.target }}/release/libcute_pet_host.a
+          if-no-files-found: error
 
   # ============ 发布: 全部构建成功后自动打 tag + GitHub Release ============
   release:
