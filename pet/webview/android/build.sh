@@ -33,6 +33,19 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# --out 传相对路径时(CI 里是 `--out dist-shell`), 后面的
+#   (cd "$out_dir/assets" && zip ... "$APK_WIN")
+# 会因为 cwd 变了而找不到目标 —— 一律转成绝对路径。
+case "$out_dir" in
+  /*) ;;
+  *) out_dir="$(pwd)/$out_dir" ;;
+esac
+# Windows 上没有 cygpath 时 --out 可能给的是 D:/xxx 形式, 保持原样即可
+case "$wasm_src" in
+  /*|[A-Za-z]:[/\\]*) ;;
+  *) wasm_src="$(pwd)/$wasm_src" ;;
+esac
+
 # ---------------- 1. SDK / 工具定位 ----------------
 
 # 坑: Windows 上 ANDROID_HOME 常是 D:\xxx 反斜杠形式, bash 的 glob 认不出来;

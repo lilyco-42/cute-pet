@@ -140,3 +140,6 @@ pet/assets/vlm_config.json
 pet/webview/android/bin/
 pet/webview/android/assets/pet/*
 !pet/webview/android/assets/pet/.gitkeep
+
+# 壳的 CI 产物输出(本地用 --out dist-shell 复现 CI 时产生)
+/dist-shell/
