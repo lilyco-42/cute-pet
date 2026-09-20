@@ -1,0 +1,83 @@
+name: Deploy Web Demo (GitHub Pages)
+
+# 把 cute-pet 的 Web(WASM) 构建部署成可在线试玩的 GitHub Pages:
+#   https://lilyco-42.github.io/cute-pet/
+#
+# 为什么单独一个 workflow 而不是复用 build-all.yml 的 web job:
+#   - 那个 job 只是把产物 upload-artifact, 并不部署
+#   - Pages 需要独立的 deploy-pages 步骤 + github-pages 环境 + Pages 已开启
+#   - 每次 push 到 main(含发版 bump)都重部署, 保证 demo 与最新代码同步
+#
+# 部署内容(全部由本 workflow 现编现拷, 不依赖任何被 .gitignore 的产物):
+#   site/index.html  <- pages/index.html 模板(已提交, 版本受控)
+#   site/gl.js       <- pet/vendor/miniquad-ply/js/gl.js (miniquad wasm 引导, vendored)
+#   site/app.wasm    <- cargo build --target wasm32-unknown-unknown --profile release-wasm
+#   site/assets/     <- pet/assets(rust-embed 已把素材编进 wasm, 这里再拷一份以防万一)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-pages-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            cargo-pages-
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build WASM
+        working-directory: pet
+        # release-wasm profile 关掉了 LTO(codegen-units=16, opt-level="s"),
+        # 否则会破坏 miniquad 的 JS 桥接符号(见 pet/Cargo.toml)
+        run: cargo build --target wasm32-unknown-unknown --profile release-wasm
+
+      - name: Assemble demo site
+        run: |
+          mkdir -p site/assets
+          cp pet/target/wasm32-unknown-unknown/release-wasm/cute-pet.wasm site/app.wasm
+          cp pet/vendor/miniquad-ply/js/gl.js site/gl.js
+          cp -r pet/assets/. site/assets/ 2>/dev/null || true
+          cp pages/index.html site/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
