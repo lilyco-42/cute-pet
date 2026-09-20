@@ -27,13 +27,13 @@
 | `pet/vendor/quad-snd` | `MIT/Apache-2.0`，但上游无 LICENSE 文件 | ✅ 可，建议补一份回执 |
 | `ply-engine`（crates.io） | 0BSD | ✅ |
 | `pet/assets/font_wenkai.ttf`（霞鹜文楷） | SIL OFL 1.1，`font_wenkai-OFL.txt` 已随仓库 | ✅ 需同目录附带许可证文本 |
-| `pet/assets/murasame_layers/*.png`（丛雨立绘分层，117 张） | ⚠️ **来源待确认** | ⚠️ 见下方说明 |
+| `pet/assets/murasame_layers/*.png`（丛雨立绘分层，117 张） | 柚子社《千恋＊万花》角色素材，**版权归柚子社**、非我方素材（见 §2.2） | ⚠️ 商业版须排除（路径 2）；测试版暂随包 |
 
-素材经 `rust-embed` 编进二进制，所以**发布二进制等于分发素材本身**。`murasame_layers/`
-这一套是从视觉小说里提取的角色立绘分层图（`murasame_manifest.json` 的
-`character` 字段写着 `ムラサメ`），默认状态是著作权保留 —— 在来源授权确认之前，
-公开 Release 这一项标记为**未决**。`THIRD-PARTY-NOTICES.md` 里写了三种来源情形
-对应的处理方式和代价，按实际情况回填即可。
+素材经 `rust-embed` 编进二进制，所以**发布二进制等于分发素材本身**（仅测试期）。`murasame_layers/`
+这一套是**从柚子社《千恋＊万花》提取的丛雨（むらさめ）立绘分层图 + 逐字台词**，版权归
+柚子社、**不归我方**。本项目是**模块化**的原创桌宠框架——屏幕操控、对话系统、角色渲染引擎等
+通用能力与角色素材**解耦**、版权归我方、可商业化；但角色素材与音频在商业版中**不得随包分发**
+（详见 `THIRD-PARTY-NOTICES.md` §2.2）。**商业包 = 无角色素材/音频**；当前先以测试版随包验证功能。
 
 ---
 
@@ -80,4 +80,4 @@ cp ../pages/index.html /tmp/cp-demo/index.html
 python -m http.server -d /tmp/cp-demo 8080   # 浏览器开 http://localhost:8080
 ```
 
-> 另：浏览器版同样内嵌了 §2.2 提到的丛雨立绘素材，来源确认前它依旧随 demo 公开。
+> 另：浏览器版内嵌 §2.2 提到的丛雨立绘素材，版权归柚子社《千恋＊万花》、非我方素材；当前测试版作为功能试玩随 demo 公开（**非商用、仅测试**，商业发布须按 §2.2 剔除）。
