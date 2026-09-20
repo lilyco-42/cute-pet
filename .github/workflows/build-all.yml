@@ -20,6 +20,67 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # ============ Lint & test(最便宜的门禁, 放最前面) ============
+  # 意图: 8 个平台各跑一次全量构建要 ~20 分钟, 而绝大多数回归是不分平台的
+  # (依赖漂移、逻辑 bug、CI 脚本写错)。先花 1 分钟在单一平台上把 "能验证的事"
+  # 验证掉, 挂了就不必烧后面的机器时间。
+  #
+  # 阻塞项与非阻塞项的区别见各 step 注释 —— 本仓库从未整体 rustfmt 过,
+  # 一次性格式化会产出铺满全仓的 diff, 因此 fmt/clippy 先以 advisory 运行,
+  # 等归零后再去掉 continue-on-error 收紧为阻塞。
+  lint:
+    name: Lint & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pet
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-lint-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            cargo-lint
+      - name: Cache cargo target
+        uses: actions/cache@v4
+        with:
+          path: pet/target
+          key: target-${{ runner.os }}-lint-${{ hashFiles('pet/Cargo.lock') }}
+          restore-keys: |
+            target-${{ runner.os }}-lint
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      # 主 crate 链接 miniquad(gl/wayland/x11/alsa), 缺 -dev 时 cargo test 会在
+      # 编译 native 依赖阶段就失败, 和 linux job 用的是同一套
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxi-dev libgl1-mesa-dev \
+            libwayland-dev libxkbcommon-dev pkg-config libgles2-mesa-dev \
+            libasound2-dev
+
+      # ── 阻塞项 ──
+      # 只跑 --lib --bins: 不构建 example/doc-test(那属于 "能不能编译",
+      # 由后面的平台 job 兜底), 这里管的是 "逻辑还对不对"。
+      # 注意: pet/host 是独立 crate(#![cfg(target_env = "ohos")], 在非鸿蒙下内容
+      # 全部 cfg 掉), 不在本 job 覆盖范围内, 由 harmony job 的真实交叉编译兜底。
+      - name: cargo test
+        run: cargo test --lib --bins
+
+      # ── 非阻塞项(advisory) ──
+      - name: cargo fmt --check
+        continue-on-error: true
+        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        continue-on-error: true
+        run: cargo clippy --lib --bins
+
   # ============ Android ============
   android:
     name: Android (${{ matrix.abi }})
@@ -423,8 +484,16 @@ jobs:
           echo "OHOS_LIBDIR=$DEST" >> "$GITHUB_ENV"
 
       - name: Set ohos cross env (RUSTFLAGS + CC)
+        # CARGO_TARGET_<TARGET>_LINKER 必须显式给: 以前是靠 pet/.cargo/config.toml
+        # 里的 [target.aarch64-unknown-linux-ohos] linker = "clang" 兜住的 —— 那段
+        # 配置连同里面写死的 D:/ohos-sdk 一起删掉后, linker 回落成 gcc 默认的 `cc`,
+        # 而 RUSTFLAGS 里的 --target=... 只有 clang 认, 于是所有 C 链接环节挂
+        # "cc: error: unrecognized command-line option '--target=aarch64-linux-ohos'"。
+        # 教训: 删本地配置里的死路径时, 顺手检查 CI 是不是其实在靠它续命。
+        # 同理 CC_/AR_/CFLAGS_ 给的是 `cc` crate(build script), 不管 rustc 的链接器。
         run: |
           {
+            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_LINKER=/usr/bin/clang"
             echo "CC_aarch64_unknown_linux_ohos=/usr/bin/clang"
             echo "AR_aarch64_unknown_linux_ohos=/usr/bin/llvm-ar"
             echo "CFLAGS_aarch64_unknown_linux_ohos=--target=aarch64-linux-ohos --sysroot=$OHOS_SYSROOT"
@@ -458,7 +527,7 @@ jobs:
   # ============ 发布: 全部构建成功后自动打 tag + GitHub Release ============
   release:
     name: Publish GitHub Release
-    needs: [android, windows, linux, macos, ios, web, harmony]
+    needs: [lint, android, windows, linux, macos, ios, web, harmony]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

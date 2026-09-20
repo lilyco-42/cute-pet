@@ -1,0 +1,44 @@
+# 统一换行符: 仓库内一律 LF, 检出时不做自动转换。
+# 理由: 本仓跨 Windows / Linux / macOS / CI 五端构建, 而 CRLF 会实实在在地咬人 ——
+#   · shell 脚本(tools/*.sh、docs/start_lyco.sh)带 CR 时 /bin/sh 报
+#     "bad interpreter: /bin/bash^M", 在 CI 上直接红掉;
+#   · pet/assets 下有中文文件名的素材, 行尾漂移会让 rust-embed 产物的 hash 变化。
+* text=auto eol=lf
+
+# ───────────────── 明确文本的扩展名 ─────────────────
+*.rs      text diff=rust
+*.toml    text
+*.md      text diff=markdown
+*.json    text
+*.jsonl   text
+*.yml     text
+*.yaml    text
+*.srt     text
+*.txt     text
+*.sh      text eol=lf
+*.py      text diff=python
+*.js      text
+*.mjs     text
+*.svg     text
+*.gitignore text
+*.gitattributes text
+
+# ───────────────── 明确二进制(永不参与 diff / 换行转换) ─────────────────
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.mp4     binary
+*.wav     binary
+*.ogg     binary
+*.mp3     binary
+*.ttf     binary
+*.otf     binary
+*.zip     binary
+*.apk     binary
+*.hap     binary
+*.tar.gz  binary
+*.ico     binary
+
+# Cargo.lock 需要保留行结构, 强制 LF 避免跨端 diff 噪音
+Cargo.lock text eol=lf linguist-generated=false

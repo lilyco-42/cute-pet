@@ -1,104 +1,133 @@
-# Build artifacts
+# cute-pet .gitignore
+#
+# 重写说明(2026-09-20):
+# 旧版本里有若干条 "按后缀全仓通配" 的规则(*.png / *.ttf / *.zip / *.wav / *.ogg),
+# 加上 3 条不锚定的裸目录名(characters/ tools/ lyco_chat/) —— 结果是 **136 个已经
+# 纳入版本控制的运行时素材被自己的 .gitignore 命中**:
+#
+#   pet/assets/murasame_layers/*.png   117 个 <- *.png
+#   pet/assets/font_wenkai.ttf           1 个 <- *.ttf
+#   pet/assets/characters/*.json|txt     4 个 <- characters/
+#   pet/tools/*                          7 个 <- tools/   (连新建的 setup 脚本都被吃掉)
+#   pet/gdi_desktop/src/*                3 个 <- pet/gdi_desktop/
+#   pet/host_app/**/base/media/*.png     2 个 <- *.png
+#
+# 这些素材都由 rust-embed 编译进二进制, 是构建必需的。被 ignore 意味着: git add 一个
+# 新素材会静默失败, `git status` 永远看不见它们的改动, `git clean -xdf` 会把它们删掉。
+#
+# 本文件三条规矩:
+#   1. 目录规则一律锚定(以 / 开头或含 /), 不用裸目录名去匹配任意层级
+#   2. 素材目录(pet/assets/**)里不用任何后缀通配 —— 例外写死比整类静默丢失强
+#   3. 要忽略的二进制产物按 "它在哪生成" 精确描述, 而不是 "它叫什么后缀"
+#
+# 自查命令(应恒为零输出):
+#   git ls-files -i -c --exclude-standard
+
+# ─────────────────────────── Rust / 构建产物 ───────────────────────────
+/target/                              # 万一以后在仓库根开 crate
 pet/target/
 pet/build/
 pet/dev/
-lyco_chat/target/
-lazy-ply/target/
-platform_check/target/
-lyco-engine/**/target/
-lazy-ply/node_modules/
-
-# Large / binary assets
-apk/
-assets/xp3_apk/
-assets/pet/murasame/corpus/voice/
-murasame_sovits_data.tar.gz
-*.wav
-*.apk
-*.wasm
+pet/release/
+pet/release_pkg/
+pet/examples/                         # 本地试验田, 不是 cargo examples/
+pet/index.html                        # wasm 调试产物(macroquad 生成)
+pet/gdi_desktop/target/
+pet/tools/extract_zh_corpus/target/
+pet/vendor/*/target/
 *.pdb
 *.rlib
-*.ogg
 
-# OS / editor
-.DS_Store
-Thumbs.db
-
-# Local scripts output
-*.log
-
-# HarmonyOS / temp CI artifacts (source committed only)
-ohos-sdk/
-pet/vendor/*/target/
-pet/release_pkg/
-tmp_rd_ci.yml
-.agents/state/sessions/
-# 忽略 vendor 内嵌 workflow
-pet/assets/vlm_config.json
-
-# lazy-ply 现在是 junction -> D:/Code/lazy-ply (canonical 独立 git 仓库), 不再纳入 cute-pet 版本控制
-/lazy-ply/
-
-
-# ---- 本地素材/历史/截图(勿提交) ----
-*.jpeg
-*.jpg
-*.png
-*.mp4
-*.gif
-session-ses_*.md
-cs_*.py
-cs_*.mjs
-cloudstudio_main.js
-2026-*.txt
-tts_audio/
-tts_audio_lanque/
-voice_index.csv
-sovits_backup/
-murasame*.list
-murasame_sovits_data.tar.gz
-characters/
-analyze_style.py
-to_pet.py
-extract_dialog.py
-tts_audio_lanque/
-flinger.txt
-actionlint.tar.gz
-zcode-dump/
-.dsh-vision-toolkit/
-
-# ---- AI-agent / OMA 系统配置(勿提交) ----
-.agents/
-.claude/
-.opencode/
-.dsh-vision-toolkit/
-
-# ---- 其它子项目/素材目录 ----
-lyco-engine/
-lyco_chat/
-platform_check/
-tools/
-characters/
-
-# ---- pet 下构建产物/素材 ----
-pet/examples/
-pet/index.html
-pet/release/
-pet/gdi_desktop/
-pet/vendor/miniquad-ply/.github/
-pet/vendor/quad-snd/.github/
-pet/*.png
-pet/*.mp4
+# ─────────────────────── 平台 / 安装包产物 ───────────────────────
+/apk/
+*.apk
+*.hap
+*.wasm                                # wasm job 产物, 由 CI artifact 承载
+*.tar.gz                              # 各种工具链/SDK 下载包
 pet/*.tar.gz
 
-# ---- 零散素材/数据文件 ----
-*.ttf
-*.zip
-dialog_feihua.txt
-dialog_lanque.txt
-lanque_messages.json
-process_whitelist.json
-tmp_liteapp.json
-tts_service.py
-xc_guide.md
+# ───────────────────────────── HarmonyOS ─────────────────────────────
+/ohos-sdk/                            # setup-ohos-cargo-config.sh 约定解压到这里
+pet/ohos-sdk/
+pet/host_app/entry/build/
+pet/host_app/.hvigor/
+pet/host_app/entry/oh_modules/
+pet/host_app/oh_modules/
+
+# ─────────────────── 本地 TTS / SoVITS 声乐训练产物 ───────────────────
+# 刻意写成 "目录/*.wav" 而不是全局 "*.wav": 后者会把 TTS 吐出来的音频和进版本库的
+# 素材混为一谈。srt(字幕/时间轴)是有用的, 不忽略。
+pet/assets/voice/*.wav
+pet/assets/voice/*.mp3
+pet/assets/voice_preset/*.wav
+pet/assets/voice_preset/*.mp3
+/assets/pet/murasame/corpus/voice/
+/tts_audio/
+/tts_audio_lanque/
+/sovits_backup/
+murasame_sovits_data.tar.gz
+voice_index.csv
+murasame*.list
+
+# ─────────────────────── 本机热点 / 临时脚本输出 ───────────────────────
+# 顺手写在仓库根的一次性产物。全部锚定到根, 不去匹配子目录。
+/session-ses_*.md
+/cs_*.py
+/cs_*.mjs
+/cloudstudio_main.js
+/2026-*.txt
+/flinger.txt
+/xc_guide.md
+/actionlint.tar.gz
+/tmp_rd_ci.yml
+/zcode-dump/
+/*.log
+
+# 本机截图 / 录屏 / 参考图(放仓库根或 /local-assets/ 下)
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/*.mp4
+pet/*.png
+pet/*.mp4
+/local-assets/
+/docs/screenshots-local/
+
+# ─────────────────────────── Python 工具 ───────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ───────────────────────── OS / 编辑器 ─────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─────────────────── AI agent / 本地自动化配置 ───────────────────
+/.agents/
+/.claude/
+/.opencode/
+/.dsh-vision-toolkit/
+
+# ─────────────── 历史遗留: 曾经以子目录形式存在过的兄弟项目 ───────────────
+# 现在仓库里没有这些目录了, 留着防止哪天又在根下 clone 一份。
+# 必须锚定到根 —— 未锚定的 "tools/" 会吃掉 pet/tools/, 见开头的重写说明。
+/lyco_chat/
+/lyco-engine/
+/platform_check/
+/characters/
+/tools/
 /assets/
+/lazy-ply/                            # junction -> D:/Code/lazy-ply(独立 canonical 仓库)
+
+# ─────────────── vendored 依赖: 连带进来的 CI / 无关配置 ───────────────
+# crates.io 发布包不含 .github; 但如果哪天改成从 git clone vendor, 里面的 workflow
+# 会被 GitHub Actions 直接捡起来跑 —— 那不是我们要的行为。
+pet/vendor/miniquad-ply/.github/
+pet/vendor/quad-snd/.github/
+pet/vendor/macroquad-ply/.github/
+
+# ─────────────────── 含本机路径 / 密钥的本地配置 ───────────────────
+pet/assets/vlm_config.json
