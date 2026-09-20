@@ -416,9 +416,12 @@ jobs:
         run: cargo build --target wasm32-unknown-unknown --profile release-wasm
       - name: Collect web assets
         run: |
-          mkdir -p build/web
+          mkdir -p build/web build/web/assets
           cp target/wasm32-unknown-unknown/release-wasm/cute-pet.wasm build/web/app.wasm
-          cp -r assets build/web/assets 2>/dev/null || true
+          # 复制 assets 时**必须排除 murasame***: 角色素材版权归柚子社《千恋＊万花》,
+          # 不随商业产物分发。wasm 里已经没有素材了, 但直接 `cp -r assets` 会把
+          # 117 张立绘原样打进 zip(v0.3.0 就是这么漏的) —— 别再改回 cp -r。
+          tar -cf - -C assets --exclude='murasame*' . | tar -xf - -C build/web/assets
           gzip -kf build/web/app.wasm 2>/dev/null || true
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -545,6 +548,18 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
+      # 发布前最后一道闸门: 任何产物里出现角色素材就**拒绝发布**。
+      # v0.3.0 就是靠这一步本该拦住的漏洞漏出去的(web job 用 cp -r assets 把
+      # 117 张立绘原样打进了 zip)。放在这里可以覆盖所有平台, 不只是 web。
+      - name: Verify no third-party character assets
+        run: |
+          hits=$(find dist -iname '*murasame*' | head -20)
+          if [ -n "$hits" ]; then
+            echo "::error::产物含第三方版权角色素材(柚子社《千恋＊万花》), 禁止发布"
+            echo "$hits"
+            exit 1
+          fi
+          echo "OK: 所有产物均不含角色素材"
       - name: Create tag & release
         env:
           GH_TOKEN: ${{ github.token }}
