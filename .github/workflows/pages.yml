@@ -10,7 +10,9 @@ name: Deploy Web Demo (GitHub Pages)
 #
 # 部署内容(全部由本 workflow 现编现拷, 不依赖任何被 .gitignore 的产物):
 #   site/index.html  <- pages/index.html 模板(已提交, 版本受控)
-#   site/gl.js       <- pet/vendor/miniquad-ply/js/gl.js (miniquad wasm 引导, vendored)
+#   site/ply_bundle.js <- pages/ply_bundle.js (ply-engine 官方 web 引导包, 已提交)
+#     含 gl.js + macroquad_audio + sapp_jsutils + ply_net + ply_storage + a11y。
+#     ⚠️ 不要换回裸 gl.js: audio_*/ply_a11y_* 会缺实现, 落进"缺失函数桩"每帧刷屏。
 #   site/app.wasm    <- cargo build --target wasm32-unknown-unknown --profile release-wasm
 #   site/assets/     <- pet/assets(rust-embed 已把素材编进 wasm, 这里再拷一份以防万一)
 
@@ -62,7 +64,7 @@ jobs:
         run: |
           mkdir -p site/assets
           cp pet/target/wasm32-unknown-unknown/release-wasm/cute-pet.wasm site/app.wasm
-          cp pet/vendor/miniquad-ply/js/gl.js site/gl.js
+          cp pages/ply_bundle.js site/ply_bundle.js
           cp -r pet/assets/. site/assets/ 2>/dev/null || true
           cp pages/index.html site/index.html
 

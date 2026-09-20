@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>cute-pet · 丛雨 桌宠 · 浏览器试玩</title>
+  <link rel="icon" href="data:,">
   <style>
     html, body {
       margin: 0; padding: 0; height: 100%;
@@ -27,22 +28,38 @@
   <div id="loading">正在加载 WebAssembly 试玩版…</div>
   <div id="hint">鼠标拖拽 / 点击与桌宠互动 · 这是 cute-pet 的浏览器试玩，资产与二进制同源托管于本仓库</div>
 
-  <!-- miniquad 的 wasm JS 引导(gl.js 来自 pet/vendor/miniquad-ply/js, 由 pages.yml 拷进 site/)。
-       gl.js 在加载时就会去 querySelector("#glcanvas"), 所以 canvas 必须在它之前存在。 -->
-  <script src="gl.js"></script>
+  <!-- ply-engine 官方 web 引导包(pages/ply_bundle.js, 由 pages.yml 拷进 site/)。
+       它 = miniquad gl.js + macroquad_audio + sapp_jsutils + ply_net(HTTP/WebSocket)
+       + ply_storage(OPFS) + ply_fixes + ply_accessibility, 一次性把 Rust 侧
+       需要的所有 wasm 导入都实现掉。
+
+       ⚠️ 别换回裸 gl.js: pet/.cargo/config.toml 用 --import-undefined 刻意保留
+       未定义导入, 缺实现时会落进 gl.js 的"缺失函数桩", 而那个桩**每次被调用都
+       console.warn**。audio_*/ply_a11y_* 每帧都调 → 实测 ~4400 条/秒, 直接把
+       DevTools 和主线程拖垮(这就是"大量错误 + 性能损耗"的根因)。
+
+       bundle 在加载时就会 querySelector("#glcanvas"), 所以 canvas 必须在它之前。 -->
+  <script src="ply_bundle.js"></script>
   <script>
-    // gl.js 暴露的是经典脚本作用域下的全局(window.importObject / wasm_exports /
-    // add_missing_functions_stabs), 这里直接复用它的实例化逻辑, 但改用 arrayBuffer 分支,
-    // 避免 GitHub Pages 对 .wasm 的 Content-Type 影响 compileStreaming。
     (async () => {
       const ld = document.getElementById("loading");
       try {
+        // 用 arrayBuffer 分支实例化, 避免 GitHub Pages 对 .wasm 的 Content-Type
+        // 影响 compileStreaming(对 application/octet-stream 会直接抛错)。
         const bytes = await fetch("app.wasm").then(r => r.arrayBuffer());
         const obj = await WebAssembly.compile(bytes);
-        if (typeof add_missing_functions_stabs === "function") add_missing_functions_stabs(obj);
+
+        // 顺序不能反: 插件先把自己的函数(register_plugin)挂进 importObject.env,
+        // 之后 add_missing_functions_stabs 才跑得上——此时已无任何缺失导入,
+        // 那两条 "No ... function" / "Missed function" 警告也就不会再出现。
+        register_plugins(plugins);
+        add_missing_functions_stabs(obj);
+
         const inst = await WebAssembly.instantiate(obj, importObject);
         wasm_memory = inst.exports.memory;
         wasm_exports = inst.exports;
+        init_plugins(plugins);
+
         if (ld) ld.style.opacity = 0;
         inst.exports.main();
       } catch (e) {
