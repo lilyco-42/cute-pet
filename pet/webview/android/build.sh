@@ -71,10 +71,12 @@ fi
 
 # Git Bash(Windows)下 aapt2/javac/d8 都是原生 Windows 程序, 不认 /d/... 这种
 # POSIX 绝对路径 —— 传给它们之前必须转成 D:/... 。Linux(CI)没有 cygpath, 原样返回。
+# ⚠️ 两个分支都必须输出换行: 这个函数还被用来生成 javac 的 @argfile,
+# 不带换行会把所有 .java 路径粘成一行(javac 报 "file not found: a.javab.javac.java")。
 if command -v cygpath >/dev/null 2>&1; then
-  winpath() { cygpath -w "$1"; }
+  winpath() { local out; out="$(cygpath -w "$1")"; printf '%s\n' "$out"; }
 else
-  winpath() { printf '%s' "$1"; }
+  winpath() { printf '%s\n' "$1"; }
 fi
 
 AAPT2="$BT/aapt2"; [ -x "$AAPT2.exe" ] && AAPT2="$AAPT2.exe"
