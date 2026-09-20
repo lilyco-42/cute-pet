@@ -3,12 +3,25 @@ name = "cute-pet"
 version = "0.2.4"
 edition = "2021"
 
+[features]
+default = ["bundle-murasame"]
+# 把「丛雨（むらさめ）」角色素材编译进二进制。
+#
+# ⚠️ 该素材（立绘分层图 / 逐字台词 / 语音）版权归柚子社《千恋＊万花》，不归我方。
+# 软件本体（屏幕操控 / 对话 / 渲染引擎）为原创、与角色素材解耦，可正常商用；
+# 但商业（付费 / 商用分发）构建必须关闭本 feature：
+#     cargo build --release --no-default-features
+# 关闭后二进制不含任何角色素材，运行时改从用户本地素材目录加载，
+# 缺失时提示「请放置素材」。详见 THIRD-PARTY-NOTICES.md §2.2。
+bundle-murasame = []
+
 [dependencies]
 anyhow = "1.0.104"
 # lazy-ply 已改名 Lazy-UI(GitHub: lilyco-42/Lazy-UI), 用 git 依赖(canonical, CI 直接 clone)
 lazy-ply = { git = "https://github.com/lilyco-42/Lazy-UI.git", branch = "main" }
 ply-engine = { version = "1.1", default-features = false, features = ["built-in-shaders", "audio"] }
-rust-embed = "8.12.0"
+# include-exclude: 让 CoreAsset 排除角色素材、CharAsset 只含角色素材(需显式启用)
+rust-embed = { version = "8.12.0", features = ["include-exclude"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.23"
