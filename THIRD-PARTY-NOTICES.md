@@ -110,11 +110,15 @@ OFL 的两个硬性要求，我们已经满足：
 - 素材形态：从商业游戏提取的立绘分层图（117 PNG）+ 逐字台词 corpus + 语音音频
 - 我方处理链路：提取分层 → 编入 `murasame_manifest.json`（按 dress / diff / layer
   装配）→ `rust-embed` 编进二进制。
-- **解耦已落地（代码层）**：Cargo feature **`bundle-murasame`**（默认开启）控制角色素材是否编入。
-  - 测试 / 开发构建（默认）：`cargo build --release` —— 素材照旧编入，体验不变。
-  - **商业构建**：`cargo build --release --no-default-features` —— 二进制**不含任何角色素材**，
+- **解耦已落地（代码层）**：Cargo feature **`bundle-murasame`** 控制角色素材是否编入，
+  **默认关闭（合规优先）** —— 任何构建命令产出的二进制都不含角色素材，包括无法透传
+  cargo 参数的 Android `plyx apk`，不会因某个平台漏加 flag 而违规。
+  - **商业构建（默认）**：`cargo build --release` —— 二进制**不含任何角色素材**，
     运行时改从**可执行文件同级 `assets/` 目录**读取；缺失时打印「角色素材缺失 …请把角色素材放到 …」
     并优雅降级（不 panic）。
+  - 测试 / 开发构建：`cargo run --features bundle-murasame` —— 素材编入，体验完整。
+  - 例外：Pages 试玩 demo（`pages.yml`）显式开启该 feature —— 它是**非商用的功能试玩**，
+    须随 demo 标注「测试版 / 非商用」。
   - 嵌入表已拆分：`CoreAsset`（字体 / UI / 对话库，始终编入，**已排除** `murasame_*`）与
     `CharAsset`（仅角色素材，仅在 feature 开启时编译）。`chat.rs` 原先的
     `include_str!("../assets/murasame_persona.txt")` 编译期内嵌也一并 gate 掉。
@@ -127,8 +131,8 @@ OFL 的两个硬性要求，我们已经满足：
 - 商业 Release：**二进制 / 安装包 / CI artifact 不得含** `murasame_layers/`、
   `murasame_corpus*.jsonl` 及任何柚子社语音音频；Release notes 声明「本商业版不含任何
   第三方版权角色素材与音频」。
-  - 构建方式（已支持）：`cargo build --release --no-default-features`（关闭
-    `bundle-murasame`）。发布前用二进制体积 / 素材检索复核一次，别只信 feature 开关。
+  - 构建方式：**默认构建即为商业版**（`bundle-murasame` 默认关闭），无需额外 flag。
+    发布前仍建议复核一次二进制体积 / 素材检索，别只信 feature 开关。
 - 角色附加件（如有，独立免费分发）：须标注「丛雨立绘/台词/音频取材自柚子社《千恋＊万花》，
   版权归柚子社所有，本附加件为非商用同人二创，不与任何商业产品捆绑」；且不进商业包。
 
@@ -163,7 +167,7 @@ OFL 的两个硬性要求，我们已经满足：
 | 发行物 | 结论 |
 |---|---|
 | 源码 tar / zip（GitHub 自动生成） | ✅ 可以，MIT 已就位；需随包带上 `LICENSE` + 本文件 + `font_wenkai-OFL.txt` |
-| 编译好的二进制 / APK / HAR | ⚠️ **测试版**（默认 `cargo build --release`）：随包含 117 张丛雨立绘分层图（取材自柚子社《千恋＊万花》，版权归柚子社、非我方素材）用于功能试玩，须声明「测试版 / 非商用」。✅ **商业版**：改用 `cargo build --release --no-default-features`（关闭 `bundle-murasame`）即可合规发版 —— 二进制不含任何角色素材，角色由用户自行放置到程序旁 `assets/` 目录（运行时加载，缺失时提示「请放置素材」）。其余素材（字体 OFL、自写代码）合规。 |
+| 编译好的二进制 / APK / HAR | ✅ **可发版（默认即商业版）**：`bundle-murasame` 默认关闭，**所有平台产物都不含** 117 张丛雨立绘分层图与逐字台词（取材自柚子社《千恋＊万花》，版权归柚子社、非我方素材）；角色由用户自行放置到程序旁 `assets/` 目录（运行时加载，缺失时提示「请放置素材」）。⚠️ 测试构建需显式 `cargo run --features bundle-murasame`，那种产物属**测试版 / 非商用**，不得作为商业发布。其余素材（字体 OFL、自写代码）合规。 |
 | 公开的仓库 + CI artifacts | ⚠️ 同上（测试版随包，须声明「测试版 / 非商用」；商业版严禁随包）。注意 CI artifact 与 Pages 部署是公开的，`main` 分支每次 push 都会产出一份带素材的产物；进入商用前须改走 §2.2 路径 2（运行时不编入素材） |
 
 **当前态度**：§2.2 已溯源为柚子社《千恋＊万花》（角色 叢雨 / むらさめ），版权归柚子社、

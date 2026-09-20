@@ -73,11 +73,12 @@ jobs:
       - name: cargo test
         run: cargo test --lib --bins
 
-      # 商业构建闸门: 关闭 bundle-murasame(二进制不含第三方版权角色素材)后仍须编译 + 测试通过。
-      # 默认 feature 下 char_asset_absent_in_commercial_build 那条测试根本不会被执行 ——
-      # 没有这一步, 解耦会悄悄退化而没人发现。详见 THIRD-PARTY-NOTICES.md §2.2。
-      - name: cargo test (commercial build, no character assets)
-        run: cargo test --lib --bins --no-default-features
+      # 素材解耦闸门: 两种配置都要测, 否则另一条路径上的编译 / 逻辑错误会悄悄溜过去。
+      #   默认(上一步)                  = 商业构建, 二进制不含第三方版权角色素材
+      #   --features bundle-murasame    = 测试 / 开发构建, 素材编入, 体验完整
+      # 角色素材版权归柚子社《千恋＊万花》, 不归我方 —— 详见 THIRD-PARTY-NOTICES.md §2.2。
+      - name: cargo test (dev build, character assets bundled)
+        run: cargo test --lib --bins --features bundle-murasame
 
       # ── 非阻塞项(advisory) ──
       - name: cargo fmt --check
@@ -564,6 +565,14 @@ jobs:
           done
           ls -la release_assets
           {
+            echo "## 版权与素材声明"
+            echo "- **本版本为商业构建, 不含任何第三方版权角色素材与音频。**"
+            echo "- 软件本体(屏幕操控 / 对话系统 / 角色渲染引擎)为原创, MIT 许可, 可商用;"
+            echo "  角色素材与音频版权归原权利人所有, 不随本发行物分发。"
+            echo "- 如需角色: 请自行以合法持有方式提供素材, 放到程序同级的 assets/ 目录(运行时加载)。"
+            echo "- 字体: 霞鹜文楷 LXGW WenKai, SIL Open Font License 1.1, 许可证文本随附。"
+            echo "- 完整合规清单见仓库 THIRD-PARTY-NOTICES.md。"
+            echo ""
             echo "## 支持的平台"
             echo "- Android: arm64-v8a / armeabi-v7a / x86_64 (APK)"
             echo "- Windows: x86_64 / arm64"
