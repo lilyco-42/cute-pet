@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>cute-pet · 丛雨 桌宠 · 浏览器试玩</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: #0e0e12; overflow: hidden;
+      font-family: system-ui, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: #e8e8ee;
+    }
+    #glcanvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; outline: none; }
+    #loading {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 15px; opacity: .85; transition: opacity .4s ease;
+    }
+    #hint {
+      position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+      font-size: 12px; opacity: .5; pointer-events: none; text-align: center; width: 90%;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="glcanvas" tabindex="1"></canvas>
+  <div id="loading">正在加载 WebAssembly 试玩版…</div>
+  <div id="hint">鼠标拖拽 / 点击与桌宠互动 · 这是 cute-pet 的浏览器试玩，资产与二进制同源托管于本仓库</div>
+
+  <!-- miniquad 的 wasm JS 引导(gl.js 来自 pet/vendor/miniquad-ply/js, 由 pages.yml 拷进 site/)。
+       gl.js 在加载时就会去 querySelector("#glcanvas"), 所以 canvas 必须在它之前存在。 -->
+  <script src="gl.js"></script>
+  <script>
+    // gl.js 暴露的是经典脚本作用域下的全局(window.importObject / wasm_exports /
+    // add_missing_functions_stabs), 这里直接复用它的实例化逻辑, 但改用 arrayBuffer 分支,
+    // 避免 GitHub Pages 对 .wasm 的 Content-Type 影响 compileStreaming。
+    (async () => {
+      const ld = document.getElementById("loading");
+      try {
+        const bytes = await fetch("app.wasm").then(r => r.arrayBuffer());
+        const obj = await WebAssembly.compile(bytes);
+        if (typeof add_missing_functions_stabs === "function") add_missing_functions_stabs(obj);
+        const inst = await WebAssembly.instantiate(obj, importObject);
+        wasm_memory = inst.exports.memory;
+        wasm_exports = inst.exports;
+        if (ld) ld.style.opacity = 0;
+        inst.exports.main();
+      } catch (e) {
+        console.error(e);
+        if (ld) ld.textContent = "加载失败：" + e;
+      }
+    })();
+  </script>
+</body>
+</html>
