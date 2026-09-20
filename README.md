@@ -44,8 +44,15 @@ cargo build --release                 # 商业版：不含任何角色素材
 cargo run --features bundle-murasame  # 测试 / 开发：带角色立绘跑
 ```
 
-商业版用户可自行把角色素材放到**可执行文件同级的 `assets/` 目录**，运行时加载；
-缺失时打印「请把角色素材放到 …」并优雅降级（不崩溃）。
+商业版用户可自行提供角色素材，运行时加载；缺失时打印候选目录提示并优雅降级（不崩溃）。
+按优先级查找：
+
+- `PET_ASSETS_DIR` 环境变量（跨平台通用，真机路径不确定时用它直接指定）
+- 可执行文件同级 `assets/`（桌面 Windows / macOS / Linux）
+- Android：`/sdcard/Android/data/rust.cute_pet/files/assets`（app 专属，无需权限），兜底 `/sdcard/cute-pet/assets`
+- 鸿蒙：`/data/storage/el2/base/haps/entry/files/assets`
+- iOS：App 的 `Documents/assets`
+- WASM：浏览器无本地文件系统，需角色请用桌面版
 
 ---
 
