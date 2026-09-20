@@ -1,18 +1,23 @@
 [package]
 name = "cute-pet"
-version = "0.2.4"
+version = "0.3.0"
 edition = "2021"
 
 [features]
-default = ["bundle-murasame"]
-# 把「丛雨（むらさめ）」角色素材编译进二进制。
+# ⚠️ 默认 = 商业构建: 二进制**不含任何第三方版权角色素材**。
 #
-# ⚠️ 该素材（立绘分层图 / 逐字台词 / 语音）版权归柚子社《千恋＊万花》，不归我方。
-# 软件本体（屏幕操控 / 对话 / 渲染引擎）为原创、与角色素材解耦，可正常商用；
-# 但商业（付费 / 商用分发）构建必须关闭本 feature：
-#     cargo build --release --no-default-features
-# 关闭后二进制不含任何角色素材，运行时改从用户本地素材目录加载，
-# 缺失时提示「请放置素材」。详见 THIRD-PARTY-NOTICES.md §2.2。
+# 「丛雨（むらさめ）」素材（立绘分层图 / 逐字台词 / 语音）版权归柚子社《千恋＊万花》，
+# 不归我方。软件本体（屏幕操控 / 对话 / 渲染引擎）为原创、与角色素材解耦，可正常商用。
+#
+# 为什么默认关闭(合规优先): 这样**任何**构建命令天然合规 —— 包括那些无法透传
+# cargo 参数的工具链(Android 的 `plyx apk` 只认 --native/--install/--auto)。
+# 不会因为某个平台漏加 `--no-default-features` 就把版权素材带进商业包。
+#
+# 测试 / 开发想带角色跑:  cargo run --features bundle-murasame
+# 商业版用户自行提供素材: 放到可执行文件同级的 assets/ 目录(运行时加载,
+#                        缺失时提示「请放置素材」)。
+# 详见 THIRD-PARTY-NOTICES.md §2.2。
+default = []
 bundle-murasame = []
 
 [dependencies]

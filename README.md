@@ -35,12 +35,17 @@
 通用能力与角色素材**解耦**、版权归我方、可商业化；但角色素材与音频在商业版中**不得随包分发**
 （详见 `THIRD-PARTY-NOTICES.md` §2.2）。**商业包 = 无角色素材/音频**；当前先以测试版随包验证功能。
 
-角色素材是否编入由 Cargo feature **`bundle-murasame`** 控制（默认开启 = 测试版体验不变）：
+角色素材是否编入由 Cargo feature **`bundle-murasame`** 控制 —— **默认关闭（合规优先）**：
+任何构建命令产出的二进制都不含第三方版权角色素材，包括那些无法透传 cargo 参数的
+工具链（Android 的 `plyx apk` 只认 `--native/--install/--auto`），不会因漏加 flag 而违规。
 
 ```bash
-cargo build --release                        # 测试版：角色素材照旧编入
-cargo build --release --no-default-features  # 商业版：不含任何角色素材，运行时从程序旁 assets/ 加载
+cargo build --release                 # 商业版：不含任何角色素材
+cargo run --features bundle-murasame  # 测试 / 开发：带角色立绘跑
 ```
+
+商业版用户可自行把角色素材放到**可执行文件同级的 `assets/` 目录**，运行时加载；
+缺失时打印「请把角色素材放到 …」并优雅降级（不崩溃）。
 
 ---
 
