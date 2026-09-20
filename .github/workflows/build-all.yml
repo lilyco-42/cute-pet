@@ -484,8 +484,16 @@ jobs:
           echo "OHOS_LIBDIR=$DEST" >> "$GITHUB_ENV"
 
       - name: Set ohos cross env (RUSTFLAGS + CC)
+        # CARGO_TARGET_<TARGET>_LINKER 必须显式给: 以前是靠 pet/.cargo/config.toml
+        # 里的 [target.aarch64-unknown-linux-ohos] linker = "clang" 兜住的 —— 那段
+        # 配置连同里面写死的 D:/ohos-sdk 一起删掉后, linker 回落成 gcc 默认的 `cc`,
+        # 而 RUSTFLAGS 里的 --target=... 只有 clang 认, 于是所有 C 链接环节挂
+        # "cc: error: unrecognized command-line option '--target=aarch64-linux-ohos'"。
+        # 教训: 删本地配置里的死路径时, 顺手检查 CI 是不是其实在靠它续命。
+        # 同理 CC_/AR_/CFLAGS_ 给的是 `cc` crate(build script), 不管 rustc 的链接器。
         run: |
           {
+            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_LINKER=/usr/bin/clang"
             echo "CC_aarch64_unknown_linux_ohos=/usr/bin/clang"
             echo "AR_aarch64_unknown_linux_ohos=/usr/bin/llvm-ar"
             echo "CFLAGS_aarch64_unknown_linux_ohos=--target=aarch64-linux-ohos --sysroot=$OHOS_SYSROOT"

@@ -12,7 +12,12 @@ rustflags = ["-C", "link-arg=--import-undefined"]
 #   OHOS_SDK_NATIVE=<sdk>/default/openharmony/native ./tools/setup-ohos-cargo-config.sh
 # 见 ../../docs/harmonyos-rust.md(仓库根 docs/ 下另有 CI_BUILD.md)。
 #
-# CI 不走这条路: harmony job 用 RUSTFLAGS 覆盖(见 .github/workflows/build-all.yml)。
-# 另外编译器仍需环境变量:
+# CI 不走这条路: harmony job 用 RUSTFLAGS 覆盖 rustflags, 并用
+# CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_LINKER 显式指定 linker
+# (见 .github/workflows/build-all.yml)。别以为只有本地在意这段 —— 删掉
+# `linker = "clang"` 那一行的 PR 就是把 CI 的鸿蒙线打挂的, 因为 linker 一旦
+# 回落成默认的 `cc`(gcc), RUSTFLAGS 里的 --target= 它就认不出来了。
+#
+# 另外编译器仍需环境变量(给 `cc` crate 的 build script 用, 和 rustc 的链接器无关):
 #   CC_aarch64_unknown_linux_ohos / AR_aarch64_unknown_linux_ohos /
 #   CFLAGS_aarch64_unknown_linux_ohos
