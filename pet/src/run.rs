@@ -150,33 +150,86 @@ struct CoreAsset;
 
 /// 用户素材目录: 角色素材不随商业二进制分发, 运行时**优先**从这里读。
 /// 桌面端 = 可执行文件同级的 assets/ 目录(把素材放程序旁边即可)。
-fn external_asset_dir() -> Option<std::path::PathBuf> {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let exe = std::env::current_exe().ok()?;
-        Some(exe.parent()?.join("assets"))
-    }
+/// 用户素材目录候选(按优先级)。角色素材不随商业二进制分发, 运行时**优先**从这里读。
+///
+/// 1. `PET_ASSETS_DIR` 环境变量 —— 跨平台通用逃生口, 真机路径不确定时用它直接指定。
+/// 2. 可执行文件同级 `assets/`(桌面)。
+/// 3. 平台专属目录:
+///    - Android: app 专属外部目录(无需权限, 本项目 minSdk 26 满足) + `/sdcard` 兜底
+///    - HarmonyOS: el2 应用沙箱 files 目录
+///    - iOS: App Documents(可通过「文件」App 放入)
+///    - WASM: 浏览器没有本地文件系统, **不支持**外部目录
+fn external_asset_dirs() -> Vec<std::path::PathBuf> {
     #[cfg(target_arch = "wasm32")]
     {
-        None
+        Vec::new()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut dirs: Vec<std::path::PathBuf> = Vec::new();
+
+        if let Some(d) = std::env::var_os("PET_ASSETS_DIR") {
+            dirs.push(std::path::PathBuf::from(d));
+        }
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(parent) = exe.parent() {
+                dirs.push(parent.join("assets"));
+            }
+        }
+
+        #[cfg(target_os = "android")]
+        {
+            // app 专属外部目录: 无需任何权限即可读写(API 19+)
+            dirs.push(std::path::PathBuf::from(
+                "/sdcard/Android/data/rust.cute_pet/files/assets",
+            ));
+            // 兜底: 用户用文件管理器直接放 sdcard 根目录
+            dirs.push(std::path::PathBuf::from("/sdcard/cute-pet/assets"));
+        }
+
+        #[cfg(target_env = "ohos")]
+        {
+            dirs.push(std::path::PathBuf::from(
+                "/data/storage/el2/base/haps/entry/files/assets",
+            ));
+        }
+
+        #[cfg(target_os = "ios")]
+        {
+            if let Some(home) = std::env::var_os("HOME") {
+                dirs.push(std::path::PathBuf::from(home).join("Documents").join("assets"));
+            }
+        }
+
+        dirs
     }
 }
 
 fn character_asset_missing_msg(p: &str) -> String {
-    match external_asset_dir() {
-        Some(dir) => format!(
-            "角色素材缺失: {p}\n本版本不含第三方版权角色素材(版权归柚子社《千恋＊万花》)。\n请把角色素材放到: {}",
-            dir.display()
-        ),
-        None => format!(
-            "角色素材缺失: {p}\n本版本不含第三方版权角色素材(版权归柚子社《千恋＊万花》), 且当前平台不支持外部素材目录。"
-        ),
+    let dirs = external_asset_dirs();
+    if dirs.is_empty() {
+        // WASM: 浏览器没有本地文件系统, 用户无法放置素材
+        format!(
+            "角色素材缺失: {p}\n本版本不含第三方版权角色素材(版权归柚子社《千恋＊万花》)。\n\
+             当前平台(WASM)无法读取本地素材目录 —— 需要角色请使用桌面版, 并把素材放到程序同级的 assets/ 目录。"
+        )
+    } else {
+        let list = dirs
+            .iter()
+            .map(|d| format!("  - {}", d.display()))
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!(
+            "角色素材缺失: {p}\n本版本不含第三方版权角色素材(版权归柚子社《千恋＊万花》)。\n\
+             请把角色素材放到以下任一目录(也可用 PET_ASSETS_DIR 环境变量指定):\n{list}"
+        )
     }
 }
 
 pub(crate) fn load_asset(p: &str) -> anyhow::Result<Vec<u8>> {
-    // 1) 用户素材目录优先 —— 商业版靠这一条拿到素材
-    if let Some(dir) = external_asset_dir() {
+    // 1) 用户素材目录优先 —— 商业版靠这一条拿到素材(按优先级逐个尝试)
+    for dir in external_asset_dirs() {
         if let Ok(b) = std::fs::read(dir.join(p)) {
             return Ok(b);
         }
@@ -1602,6 +1655,24 @@ mod asset_decoupling_tests {
         assert!(CharAsset::get("murasame_manifest.json").is_some());
         let n = CharAsset::iter().count();
         assert!(n > 100, "角色素材应含 117 张立绘分层图, 实际 {n}");
+    }
+
+    /// `PET_ASSETS_DIR` 应被优先查找 —— 这是跨平台 / 真机的通用逃生口。
+    /// 用唯一文件名, 避免与其它并行测试的素材查找互相干扰。
+    #[test]
+    fn pet_assets_dir_env_is_honored() {
+        let probe = "cp_assets_probe_unique.bin";
+        let tmp = std::env::temp_dir().join(format!("cp_assets_probe_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&tmp);
+        std::fs::write(tmp.join(probe), b"ok").unwrap();
+
+        std::env::set_var("PET_ASSETS_DIR", &tmp);
+        let got = load_asset(probe);
+        std::env::remove_var("PET_ASSETS_DIR");
+
+        let _ = std::fs::remove_file(tmp.join(probe));
+        let _ = std::fs::remove_dir_all(&tmp);
+        assert!(got.is_ok(), "PET_ASSETS_DIR 指定的目录应被优先查找");
     }
 
     /// 商业构建下角色素材不可从嵌入表取得(只能走用户素材目录)。

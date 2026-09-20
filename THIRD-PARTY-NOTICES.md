@@ -114,8 +114,11 @@ OFL 的两个硬性要求，我们已经满足：
   **默认关闭（合规优先）** —— 任何构建命令产出的二进制都不含角色素材，包括无法透传
   cargo 参数的 Android `plyx apk`，不会因某个平台漏加 flag 而违规。
   - **商业构建（默认）**：`cargo build --release` —— 二进制**不含任何角色素材**，
-    运行时改从**可执行文件同级 `assets/` 目录**读取；缺失时打印「角色素材缺失 …请把角色素材放到 …」
-    并优雅降级（不 panic）。
+    运行时改从**用户素材目录**读取；缺失时打印「角色素材缺失 …请把角色素材放到 …」并列出
+    全部候选目录，优雅降级（不 panic）。
+  - 素材目录查找顺序：`PET_ASSETS_DIR` 环境变量 → 可执行文件同级 `assets/`（桌面）→
+    平台专属目录（Android `/sdcard/Android/data/rust.cute_pet/files/assets`、
+    鸿蒙 el2 沙箱 `files/assets`、iOS `Documents/assets`）。WASM 无本地文件系统，不支持。
   - 测试 / 开发构建：`cargo run --features bundle-murasame` —— 素材编入，体验完整。
   - 例外：Pages 试玩 demo（`pages.yml`）显式开启该 feature —— 它是**非商用的功能试玩**，
     须随 demo 标注「测试版 / 非商用」。
