@@ -31,6 +31,23 @@
 | `lazy-ply` | git `lilyco-42/Lazy-UI` @ main | ⚠️ **仓库无 LICENSE** | 你自己的账号下的仓库 → 没有第三方风险，但 CI 用 `git` 依赖 clone 它，建议顺手给它加一份 MIT，让依赖图干净 |
 | 其余 crates.io 依赖（`rust-embed` / `serde` / `ureq` / `anyhow` / `base64` / …） | crates.io | MIT / MIT OR Apache-2.0 | 无修改，按各自许可证 |
 
+### 1.3 Web 引导 JS（`pages/ply_bundle.js`）
+
+`pages/ply_bundle.js`（45 KB，minified）是从 **crates.io `ply-engine 1.1.1`** 的
+`js/ply_bundle.js` **逐字节原样拷贝**的。它是该 crate 官方随包分发的浏览器引导
+bundle，内含 miniquad `gl.js` + `macroquad_audio` + `sapp_jsutils` + `ply_net`
+(HTTP/WebSocket) + `ply_storage`(OPFS) + `ply_fixes` + `ply_accessibility`。
+
+- 来源：`ply-engine 1.1.1` → [TheRedDeveloper/ply-engine](https://github.com/TheRedDeveloper/ply-engine)
+- 许可证：**0BSD**（与上表 `ply-engine` 同一份），实质等同公共领域，可放心分发
+- 我方改动：无
+- 升级方式：升 `ply-engine` 后执行
+  `cp ~/.cargo/registry/src/*/ply-engine-<ver>/js/ply_bundle.js pages/ply_bundle.js`
+
+> 为什么必须带上它：`pet/.cargo/config.toml` 用 `--import-undefined` 刻意保留未定义
+> 导入；只提供裸 `gl.js` 会让 `audio_*` / `ply_a11y_*` 全部落进"缺失函数桩"并**每帧**
+> `console.warn`（实测 ~4400 条/秒，拖垮 DevTools 与主线程）。详见 README「Web 试玩」。
+
 ---
 
 ## 2. 素材（`pet/assets/`，rust-embed 编译进二进制 → **Release 里是带着它们分发的**）

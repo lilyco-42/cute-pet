@@ -61,20 +61,23 @@ harmony job 用 `RUSTFLAGS` 覆盖（`pet/.cargo/config.toml` 里刻意不写死
 仓库自带浏览器版：<https://lilyco-42.github.io/cute-pet/>。它由
 [`.github/workflows/pages.yml`](.github/workflows/pages.yml) 在每次 push 到 `main` 时，
 把 `cargo build --target wasm32-unknown-unknown --profile release-wasm` 的产物
-（`app.wasm`）+ miniquad 的 wasm 引导（`pet/vendor/miniquad-ply/js/gl.js`）+ 引导页
-（`pages/index.html`）组装成静态站点部署。
+（`app.wasm`）+ ply-engine 官方 web 引导包（`pages/ply_bundle.js`，内含
+miniquad `gl.js` / `macroquad_audio` / `sapp_jsutils` / `ply_net` / `ply_storage` /
+无障碍）+ 引导页（`pages/index.html`）组装成静态站点部署。
+
+> ⚠️ 引导 JS 必须用 `ply_bundle.js`，**不要换回裸 `gl.js`**。`pet/.cargo/config.toml`
+> 用 `--import-undefined` 刻意保留未定义导入；缺实现时 `gl.js` 会把它们装成
+> "缺失函数桩"，而那个桩**每次被调用都 `console.warn`**。`audio_*` / `ply_a11y_*`
+> 每帧都会调 → 实测约 4400 条警告/秒，DevTools 与主线程一起被拖垮。
 
 本地起一个等价预览（需先 build wasm）：
 
 ```bash
 cd pet && cargo build --target wasm32-unknown-unknown --profile release-wasm
 mkdir -p /tmp/cp-demo && cp target/wasm32-unknown-unknown/release-wasm/cute-pet.wasm /tmp/cp-demo/app.wasm
-cp ../pet/vendor/miniquad-ply/js/gl.js /tmp/cp-demo/gl.js
+cp ../pages/ply_bundle.js /tmp/cp-demo/ply_bundle.js
 cp ../pages/index.html /tmp/cp-demo/index.html
-# 还需要把 pet/assets 拷一份到 /tmp/cp-demo/assets（rust-embed 已内嵌, 通常可省）
 python -m http.server -d /tmp/cp-demo 8080   # 浏览器开 http://localhost:8080
 ```
 
-> 注意：WASM 版从未在真实浏览器里手测过（仅 CI 跑过 `cargo build`），如果试玩页空白，
-> 先看浏览器控制台的报错 —— 多半是 gl.js 版本或 canvas 初始化问题。
 > 另：浏览器版同样内嵌了 §2.2 提到的丛雨立绘素材，来源确认前它依旧随 demo 公开。
