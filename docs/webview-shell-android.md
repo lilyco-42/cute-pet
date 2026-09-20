@@ -177,9 +177,35 @@ wasm 侧只剩一句「向壳要素材」，各平台差异收敛到壳里。
 | 4 | wasm 渲染 | Android WebView 上 ≥ 45fps（桌面实测 120fps） | 待真机 |
 | 5 | 素材加载 | `asset.fetch` 拿到角色素材，商业版能显示角色 | 桥已通，Rust 侧对接 M3 |
 | 6 | 音频 | 桌宠语音能播（Android WebView 音频策略需验证） | 待真机 |
-| 7 | 体积/启动 | APK 体积与启动时间与现有原生版对比（需给出数据） | 体积✅ 启动待真机 |
+| 7 | 体积/启动 | APK 体积与启动时间与现有原生版对比（需给出数据） | 体积✅ / **启动 2.1s✅** |
 
 **第 7 项必须有数据** —— 这是决定要不要切换的关键，不能只凭感觉。
+
+### 6.0 已跑通的端到端环节（AVD，2026-09-21）
+
+在 `mc_test`（Android 16 / x86_64）上**人工跑通到这一步**：
+
+| 环节 | 结果 |
+|---|---|
+| 出包 | ✅ `dist-shell/cute-pet-shell.apk` 3.5 MB |
+| `adb push` + `pm install -r -t` | ✅ 安装成功，`pm list packages` 可见 `rust.cute_pet` |
+| 启动 `MainActivity` | ✅ 起得来，首帧绘制 **2125 ms**（`finishDrawing of relaunch`）—— **这是启动时间的第一个实测值** |
+| `OverlayService` 悬浮窗 | ⏳ 未跑到（见下方限制） |
+
+安装与启动这两步走通说明**壳本身没结构性错误**：签名有效、Manifest 正常解析、
+包名正确、方法数与 dex 没问题、framework API 调用不炸。
+
+### 6.2 环境限制：本机 AVD 撑不到悬浮窗验证
+
+在这台机器上反复出现：**模拟器每次都在 `Boot completed` 之后约 1 分钟内被杀掉**。
+已验证与启动参数无关（试过有窗口 / `-no-window` / `-no-audio` / swiftshader），
+日志每次都停在 `INFO | Boot completed in ... ms` 之后，没有异常栈。
+判断是宿主的后台进程回收策略在杀高内存进程（同一环境里 `adb wait-for-device`
+这类长时间阻塞的命令也会被 auto-background 后终止）。
+
+结论：**悬浮窗的透明/帧率/拖动手感必须在真机上验**，模拟器救不了。
+真机验证步骤见 `pet/webview/android/README.md`；CI 产物可从
+`Android WebView Shell` workflow 的 artifact 直接下载。
 
 ### 6.1 已有实测数据（CI，2026-09-21）
 
