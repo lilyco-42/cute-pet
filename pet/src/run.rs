@@ -119,14 +119,92 @@ const SCALE: f32 = 0.6;
 const SCALE: f32 = 1.0 / 3.0;
 
 /// 跨平台资�? 编译期嵌入二进制(rust-embed), 所有平台统一, 无运行时路径问题�?
+/// 第三方版权角色素材(丛雨/むらさめ)的路径前缀。
+/// 版权归柚子社《千恋＊万花》、不归我方 —— 商业构建(`--no-default-features`,
+/// 无 bundle-murasame)不编入二进制, 运行时改从用户素材目录加载。
+const CHARACTER_ASSET_PREFIXES: [&str; 4] = [
+    "murasame_manifest.json",
+    "murasame_persona.txt",
+    "murasame_corpus",
+    "murasame_layers/",
+];
+
+/// 是否属于第三方版权角色素材(而非我方原创资产)。
+pub(crate) fn is_character_asset(p: &str) -> bool {
+    CHARACTER_ASSET_PREFIXES.iter().any(|s| p.starts_with(s))
+}
+
+/// 只含角色素材的嵌入表 —— 仅在 bundle-murasame(默认: 开发 / 测试构建)下编译。
+#[cfg(feature = "bundle-murasame")]
 #[derive(rust_embed::RustEmbed)]
 #[folder = "assets/"]
-struct Asset;
+#[include = "murasame_*"]
+struct CharAsset;
 
-fn load_asset(p: &str) -> anyhow::Result<Vec<u8>> {
-    Asset::get(p)
-        .map(|f| f.data.into_owned())
-        .ok_or_else(|| anyhow::anyhow!("资产缺失: {p}"))
+/// 核心资产(字体 / UI 预设 / 对话库等): 始终编入, 且已排除角色素材。
+/// 商业构建靠这张表就够 —— 二进制里不含任何柚子社素材。
+#[derive(rust_embed::RustEmbed)]
+#[folder = "assets/"]
+#[exclude = "murasame_*"]
+struct CoreAsset;
+
+/// 用户素材目录: 角色素材不随商业二进制分发, 运行时**优先**从这里读。
+/// 桌面端 = 可执行文件同级的 assets/ 目录(把素材放程序旁边即可)。
+fn external_asset_dir() -> Option<std::path::PathBuf> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let exe = std::env::current_exe().ok()?;
+        Some(exe.parent()?.join("assets"))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        None
+    }
+}
+
+fn character_asset_missing_msg(p: &str) -> String {
+    match external_asset_dir() {
+        Some(dir) => format!(
+            "角色素材缺失: {p}\n本版本不含第三方版权角色素材(版权归柚子社《千恋＊万花》)。\n请把角色素材放到: {}",
+            dir.display()
+        ),
+        None => format!(
+            "角色素材缺失: {p}\n本版本不含第三方版权角色素材(版权归柚子社《千恋＊万花》), 且当前平台不支持外部素材目录。"
+        ),
+    }
+}
+
+pub(crate) fn load_asset(p: &str) -> anyhow::Result<Vec<u8>> {
+    // 1) 用户素材目录优先 —— 商业版靠这一条拿到素材
+    if let Some(dir) = external_asset_dir() {
+        if let Ok(b) = std::fs::read(dir.join(p)) {
+            return Ok(b);
+        }
+    }
+    // 2) 编译期嵌入
+    if is_character_asset(p) {
+        #[cfg(feature = "bundle-murasame")]
+        if let Some(f) = CharAsset::get(p) {
+            return Ok(f.data.into_owned());
+        }
+        anyhow::bail!("{}", character_asset_missing_msg(p))
+    } else if let Some(f) = CoreAsset::get(p) {
+        Ok(f.data.into_owned())
+    } else {
+        anyhow::bail!("资产缺失: {p}")
+    }
+}
+
+/// 角色素材加载失败时打印提示并降级(不 panic)。
+/// 商业版正常情况下就会走这条路径 —— 缺素材属于预期, 不是崩溃理由。
+pub(crate) fn load_character_asset_or_warn(p: &str) -> Option<Vec<u8>> {
+    match load_asset(p) {
+        Ok(b) => Some(b),
+        Err(e) => {
+            eprintln!("[cute-pet] {e}");
+            None
+        }
+    }
 }
 
 // ---------------- manifest 模型 ----------------
@@ -477,7 +555,11 @@ pub fn start() {
 }
 
 pub async fn run() {
-    let manifest_bytes = load_asset(MANIFEST_PATH).expect("读取 manifest.json");
+    // 商业构建(无 bundle-murasame)不含角色素材 → 打印提示后退出渲染循环, 不 panic。
+    let Some(manifest_bytes) = load_character_asset_or_warn(MANIFEST_PATH) else {
+        eprintln!("[cute-pet] 未找到角色素材, 退出渲染循环(软件其余模块化能力不受影响)。");
+        return;
+    };
     let mut manifest: Manifest = serde_json::from_slice(&manifest_bytes).expect("解析 manifest.json");
     println!("加载角色: {} ({}) voice={}", manifest.name_cn, manifest.character, manifest.voice_code);
 
@@ -628,8 +710,9 @@ pub async fn run() {
     // 聊天�? 丛雨 persona(LLM env 门控 + 语料兜底) + CJK 字体
     // 双语: 中文语料过滤掉含假名的垃圾日语, 日文语料原样。语言用 PET_LANG / 运行时切换。
     use crate::chat::{filter_zh_corpus, Lang};
-    let corpus_zh = load_asset("murasame_corpus_zh.jsonl").expect("加载中文语料失败");
-    let corpus_jp = load_asset("murasame_corpus.jsonl").expect("加载日文语料失败");
+    // 语料缺失可安全降级: 空语料仍能构建 persona(只是检索无命中), 不是崩溃理由。
+    let corpus_zh = load_character_asset_or_warn("murasame_corpus_zh.jsonl").unwrap_or_default();
+    let corpus_jp = load_character_asset_or_warn("murasame_corpus.jsonl").unwrap_or_default();
     let mut persona_zh = Persona::murasame_from_corpus_content(
         &filter_zh_corpus(&String::from_utf8_lossy(&corpus_zh)),
     ).expect("解析中文语料失败");
@@ -1486,4 +1569,49 @@ pub fn ohos_set_keyboard_height(px: i32) {
 #[cfg(target_env = "ohos")]
 fn keyboard_height() -> f32 {
     KEYBOARD_H.load(std::sync::atomic::Ordering::Relaxed).max(0) as f32
+}
+
+// ---------------- 素材解耦测试(把 §2.2 合规结论固化成断言) ----------------
+
+#[cfg(test)]
+mod asset_decoupling_tests {
+    use super::*;
+
+    /// 铁律: 核心资产表绝不能含任何第三方版权角色素材。
+    /// 商业构建(`--no-default-features`)只用这张表 —— 这条挂了就等于商业包漏带素材。
+    #[test]
+    fn core_asset_excludes_character_assets() {
+        let leaked: Vec<String> = CoreAsset::iter()
+            .map(|f| f.as_ref().to_string())
+            .filter(|p| is_character_asset(p))
+            .collect();
+        assert!(leaked.is_empty(), "核心资产表混入了角色素材: {leaked:?}");
+    }
+
+    /// 字体等原创 / 合规资产必须始终编入 —— 商业版也要能正常跑 UI。
+    #[test]
+    fn core_asset_contains_font() {
+        assert!(CoreAsset::get("font_wenkai.ttf").is_some(), "字体应始终编入");
+        assert!(CoreAsset::get("font_wenkai-OFL.txt").is_some(), "OFL 文本应随字体分发");
+    }
+
+    /// 测试 / 开发构建(默认 bundle-murasame)下角色素材照旧可用, 现有体验不变。
+    #[cfg(feature = "bundle-murasame")]
+    #[test]
+    fn char_asset_bundled_in_dev_build() {
+        assert!(CharAsset::get("murasame_manifest.json").is_some());
+        let n = CharAsset::iter().count();
+        assert!(n > 100, "角色素材应含 117 张立绘分层图, 实际 {n}");
+    }
+
+    /// 商业构建下角色素材不可从嵌入表取得(只能走用户素材目录)。
+    #[cfg(not(feature = "bundle-murasame"))]
+    #[test]
+    fn char_asset_absent_in_commercial_build() {
+        assert!(CoreAsset::get("murasame_manifest.json").is_none());
+        assert!(CoreAsset::get("murasame_corpus.jsonl").is_none());
+        // 缺失时应给出友好提示, 而不是 panic
+        let err = load_asset("murasame_manifest.json").unwrap_err().to_string();
+        assert!(err.contains("角色素材缺失"), "错误信息应提示放置素材, 实际: {err}");
+    }
 }

@@ -35,6 +35,13 @@
 通用能力与角色素材**解耦**、版权归我方、可商业化；但角色素材与音频在商业版中**不得随包分发**
 （详见 `THIRD-PARTY-NOTICES.md` §2.2）。**商业包 = 无角色素材/音频**；当前先以测试版随包验证功能。
 
+角色素材是否编入由 Cargo feature **`bundle-murasame`** 控制（默认开启 = 测试版体验不变）：
+
+```bash
+cargo build --release                        # 测试版：角色素材照旧编入
+cargo build --release --no-default-features  # 商业版：不含任何角色素材，运行时从程序旁 assets/ 加载
+```
+
 ---
 
 ## 开发

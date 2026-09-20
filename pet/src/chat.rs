@@ -63,6 +63,25 @@ pub struct Persona {
     pub voice_code: String,
 }
 
+/// 默认 persona 文本(丛雨 / むらさめ)。
+///
+/// ⚠️ 该台词版权归柚子社《千恋＊万花》, **不归我方**。
+/// - `bundle-murasame`(默认, 开发 / 测试构建): 编译期嵌入, 与改造前行为一致。
+/// - 商业构建(`--no-default-features`): 改为运行时从素材目录读取, 读不到就返回空串降级 ——
+///   绝不把角色台词编进商业二进制。
+#[cfg(feature = "bundle-murasame")]
+fn default_persona_text() -> String {
+    include_str!("../assets/murasame_persona.txt").to_string()
+}
+
+#[cfg(not(feature = "bundle-murasame"))]
+fn default_persona_text() -> String {
+    crate::run::load_asset("murasame_persona.txt")
+        .ok()
+        .and_then(|b| String::from_utf8(b).ok())
+        .unwrap_or_default()
+}
+
 impl Persona {
     /// 追加语言约束到 system prompt(构建后调用)。
     pub fn set_language(&mut self, lang: Lang) {
@@ -110,11 +129,11 @@ impl Persona {
             candidates
                 .iter()
                 .find_map(|c| persona_from_file(c))
-                .unwrap_or_else(|| include_str!("../assets/murasame_persona.txt").to_string())
+                .unwrap_or_else(|| default_persona_text())
         } else if let Ok(p) = std::env::var("PET_PERSONA_FILE") {
-            persona_from_file(&p).unwrap_or_else(|| include_str!("../assets/murasame_persona.txt").to_string())
+            persona_from_file(&p).unwrap_or_else(|| default_persona_text())
         } else {
-            include_str!("../assets/murasame_persona.txt").to_string()
+            default_persona_text()
         };
         // 可选: 导入「喜欢的人」聊天记录学习语气。
         //   本地文件:  PET_STYLE_LOG=/path/chat.txt + PET_STYLE_SPEAKER=名字

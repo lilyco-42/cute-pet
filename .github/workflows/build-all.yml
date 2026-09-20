@@ -73,6 +73,12 @@ jobs:
       - name: cargo test
         run: cargo test --lib --bins
 
+      # 商业构建闸门: 关闭 bundle-murasame(二进制不含第三方版权角色素材)后仍须编译 + 测试通过。
+      # 默认 feature 下 char_asset_absent_in_commercial_build 那条测试根本不会被执行 ——
+      # 没有这一步, 解耦会悄悄退化而没人发现。详见 THIRD-PARTY-NOTICES.md §2.2。
+      - name: cargo test (commercial build, no character assets)
+        run: cargo test --lib --bins --no-default-features
+
       # ── 非阻塞项(advisory) ──
       - name: cargo fmt --check
         continue-on-error: true
