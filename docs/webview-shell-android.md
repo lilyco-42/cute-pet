@@ -1,8 +1,24 @@
 # Android WebView 壳原型方案（wasm + webview 跨平台路线）
 
-> 状态：**方案稿，待 review 后动手**。本文只做设计，不含实现。
+> 状态：**M1 已落地（Android 壳可构建出 APK），M2–M4 待真机验证**。
+> 本文是设计与进度记录；代码在 `pet/webview/`（见 §0）。
 > 目标读者：决定要不要把 cute-pet 从「Rust 原生逐平台交叉编译」切到
 > 「单 wasm 内核 + 薄原生 WebView 壳」的人。
+
+## 0. 实现位置（M1）
+
+| 文件 | 作用 |
+|---|---|
+| `pet/webview/android/AndroidManifest.xml` | 壳清单，包名沿用 `rust.cute_pet`（素材目录与原生版重合） |
+| `pet/webview/android/src/rust/cute_pet/OverlayService.java` | 悬浮窗 + WebView + 拖动 + 穿透切换 |
+| `pet/webview/android/src/rust/cute_pet/PetBridge.java` | JS ↔ Native 桥（§4.3 协议实现） |
+| `pet/webview/android/src/rust/cute_pet/MainActivity.java` | 权限引导 + 起服务 |
+| `pet/webview/web/index.html` | 透明版 Web 内容层（区别于 `pages/index.html` 的深色底） |
+| `pet/webview/web/pet_bridge.js` | 桥的 JS 侧 |
+| `pet/webview/android/build.sh` | 纯 SDK 构建（aapt2+javac+d8+zipalign+apksigner，**无 Gradle**） |
+| `.github/workflows/android-shell.yml` | 远端构建 + 合规闸门 |
+
+本地：`cd pet/webview/android && bash build.sh` → `bin/cute-pet-shell.apk`。
 
 ---
 
@@ -183,11 +199,23 @@ wasm 侧只剩一句「向壳要素材」，各平台差异收敛到壳里。
 
 ## 8. 里程碑
 
-- **M1 壳与内核跑通**：OverlayService 挂 WebView，加载 wasm，能渲染（无原生能力）
-- **M2 Bridge 接通**：move / size / clipboard / keyboard
-- **M3 截屏 + 素材**：`capture.request` 回传帧；`asset.fetch` 拿到角色素材
+- **M1 壳与内核跑通** —— ✅ 代码已落地并可出包（apk 3.5M，dex/内容层齐全，CI 可构建）；
+  ⏳ 仍缺**真机**确认：透明渲染、帧率、拖动手感
+- **M2 Bridge 接通** —— ✅ move / setSize / setPassthrough / clipboard / keyboard / log 已实现；
+  ⏳ 待真机联调
+- **M3 截屏 + 素材** —— 桥的 `asset.fetch` 已通（Rust 侧对接未做）；`capture.request` 待接
+  `pet/java/ScreenCaptureService.java`
 - **M4 评估决策**：与现有原生 Android 构建对比（体积 / 启动 / 帧率 / 维护成本），
-  数据化决定是否切换
+  数据化决定是否切换 —— **必须先有真机数据**
+
+### 8.1 构建方式的一个取舍：不用 Gradle
+
+壳只用 framework API，不引 androidx，所以能用 SDK 自带的 aapt2/javac/d8/zipalign/apksigner
+直接出包，**CI 无需联网拉依赖**。代价是没有 Gradle 的资源合并与多渠道；
+将来若引入 XML 布局或第三方库，再迁 Gradle 不迟。
+
+已知坑（都在 `build.sh` 里处理过）：Git Bash 下这些工具是原生 Windows 程序，
+POSIX 路径（`/d/...`）会被当成 `\d\...`，凡绝对路径都要 `cygpath -w` 转一遍。
 
 ---
 

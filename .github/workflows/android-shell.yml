@@ -1,0 +1,102 @@
+name: Android WebView Shell
+
+# wasm + WebView 跨平台路线的 M1: 用 Android SDK 自带工具链(aapt2 + javac + d8 +
+# zipalign + apksigner)构建**纯 framework** 的 WebView 悬浮窗壳。
+# 不依赖 Gradle / androidx / 任何第三方库, 因此无需联网拉依赖。
+#
+# 产物: cute-pet-shell.apk(仅 CI 产物, **不进 Release**)。
+# 合规: 默认构建 = 商业版(不含第三方版权角色素材), 闸门见下。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      with_character_assets:
+        description: '自测模式: wasm 带角色素材(仅供个人真机调试, 不得发布)'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: android-shell-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build WebView shell APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Rust + wasm32 target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: pet
+
+      - name: Build wasm kernel
+        working-directory: pet
+        run: |
+          if [ "${{ inputs.with_character_assets }}" = "true" ]; then
+            echo "::warning::自测模式: wasm 含第三方角色素材, 产物不得发布"
+            cargo build --target wasm32-unknown-unknown --profile release-wasm --features bundle-murasame
+          else
+            cargo build --target wasm32-unknown-unknown --profile release-wasm
+          fi
+          ls -la target/wasm32-unknown-unknown/release-wasm/cute-pet.wasm
+
+      - name: Ensure Android SDK build-tools
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          if ! ls "$SDK"/build-tools/* >/dev/null 2>&1; then
+            CM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+            [ -x "$CM" ] || { echo "::error::找不到 sdkmanager: $CM"; exit 1; }
+            yes | "$CM" --licenses >/dev/null 2>&1 || true
+            "$CM" --install "platforms;android-34" "build-tools;34.0.0"
+          fi
+          ls -d "$SDK"/build-tools/* "$SDK"/platforms/*
+
+      - name: Build APK
+        run: bash pet/webview/android/build.sh --out dist-shell
+
+      - name: 体积与内容层(验证清单第 7 项需要数据)
+        run: |
+          echo "APK: $(du -h dist-shell/cute-pet-shell.apk | cut -f1)"
+          echo "内容层:"
+          du -h dist-shell/assets/pet/* | sort -h
+          echo "APK 内文件树:"
+          unzip -Z1 dist-shell/cute-pet-shell.apk | sed 's/^/  /'
+
+      - name: 合规闸门 —— 产物不得含第三方版权角色素材
+        run: |
+          if [ "${{ inputs.with_character_assets }}" = "true" ]; then
+            echo "::warning::自测模式, 跳过素材闸门(该产物禁止发布)"
+            exit 0
+          fi
+          hits="$(unzip -Z1 dist-shell/cute-pet-shell.apk | grep -i murasame || true)"
+          hits2="$(find dist-shell/assets -iname '*murasame*' 2>/dev/null || true)"
+          if [ -n "$hits$hits2" ]; then
+            echo "::error::壳产物含第三方版权角色素材(柚子社《千恋＊万花》), 禁止发布"
+            echo "$hits"; echo "$hits2"
+            exit 1
+          fi
+          echo "✅ 产物无角色素材(商业构建)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cute-pet-shell-apk
+          path: dist-shell/cute-pet-shell.apk
+          if-no-files-found: error
