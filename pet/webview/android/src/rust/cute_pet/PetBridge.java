@@ -5,6 +5,7 @@ import android.os.Looper;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -43,6 +44,17 @@ public final class PetBridge {
 
         /** 素材目录候选(按优先级) */
         File[] assetDirs();
+
+        // ---- agent 脸(MVP): 丛雨当界面, 真大脑(lilyco-approve)后续接入 ----
+
+        /** 原生大脑驱动丛雨说一句台词 */
+        void agentSay(String text);
+
+        /** 原生大脑让丛雨弹出审批卡(actions 为动作对象数组, schema 见 docs) */
+        void agentPropose(JSONArray actions);
+
+        /** JS 审批卡"批准/拒绝"后回传: approved + 原样动作数组 */
+        void onAgentApproved(boolean approved, JSONArray actions);
     }
 
     private static final String TAG = "PetBridge";
@@ -143,6 +155,13 @@ public final class PetBridge {
                 case "lifecycle":
                     android.util.Log.i(TAG, "lifecycle: " + p.optString("state"));
                     break;
+
+                case "agent.approve": {
+                    JSONArray acts = p.optJSONArray("actions");
+                    host.onAgentApproved(p.optBoolean("approved"), acts);
+                    reply(id, null, null);
+                    break;
+                }
 
                 case "log":
                     android.util.Log.i(TAG, "[" + p.optString("level", "info") + "] " + p.optString("msg"));
