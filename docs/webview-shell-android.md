@@ -142,9 +142,11 @@ wm.addView(webView, params);   // params 沿用现有（含拖动 handler）
 ### 4.4 截屏回传（两种粒度，分两阶段）
 
 **M3-part1（已落地）：截 WebView 自身画面。**
-`capture.request` 用 `PixelCopy` 抓取 WebView 的 Surface（即桌宠自己的渲染画面，
-透明通道保留），压 PNG(base64) 经 `capture.frame` 推回 JS。开销小（仅桌宠那一小块）、
-无需用户授权、无 MediaProjection 的 Android 16 停服问题。用途：分享/存档桌宠截图。
+`capture.request` 把 WebView 临时切到 `LAYER_TYPE_SOFTWARE` 后 `draw(Canvas)` 到 Bitmap
+（即桌宠自己的渲染画面，透明通道保留），压 PNG(base64) 经 `capture.frame` 推回 JS。
+> 注：原本想用 `PixelCopy`，但实测 CI 平台（android-37.2-beta3）的 `PixelCopy` 只有
+> Surface/SurfaceView/Window 重载、**没有 View 重载**，WebView 不能直接传。软件层 draw 全 SDK 可用、能保留透明，
+> 对小尺寸桌宠一次性截屏足够。开销小、无需用户授权、无 MediaProjection 的 Android 16 停服问题。用途：分享/存档桌宠截图。
 
 **M3-part2（待做）：全屏感知喂 VLM。**
 若要让宠物"看见"屏幕（视觉链路），才需要 `MediaProjection` 全屏帧。那套带宽注意如下，
@@ -182,7 +184,7 @@ wasm 侧只剩一句「向壳要素材」，各平台差异收敛到壳里。
 |---|---|---|---|
 | 1 | 悬浮窗定位 | 桌宠浮在其他应用之上，可拖动，位置持久化 | 代码就绪，待真机 |
 | 2 | 透明背景 | 桌宠以外区域能看到下层应用（不是黑/白块） | 代码就绪，待真机 |
-| 3 | 截屏回传 | `capture.request()` → 壳回 `capture.frame`（PixelCopy 截 WebView 自身） | M3-part1 ✅ 壳侧已实现；全屏 MediaProjection 感知 M3-part2 |
+| 3 | 截屏回传 | `capture.request()` → 壳回 `capture.frame`（软件层 draw 截 WebView 自身） | M3-part1 ✅ 壳侧已实现；全屏 MediaProjection 感知 M3-part2 |
 | 4 | wasm 渲染 | Android WebView 上 ≥ 45fps（桌面实测 120fps） | 待真机 |
 | 5 | 素材加载 | `asset.fetch` 拿到角色素材，商业版能显示角色 | 桥已通，Rust 侧对接 M3 |
 | 6 | 音频 | 桌宠语音能播（Android WebView 音频策略需验证） | 待真机 |
@@ -254,7 +256,7 @@ wasm 侧只剩一句「向壳要素材」，各平台差异收敛到壳里。
 - **M2 Bridge 接通** —— ✅ move / setSize / setPassthrough / clipboard / keyboard / log 已实现；
   ⏳ 待真机联调
 - **M3 截屏 + 素材**
-  - 截屏 `capture.request`：**M3-part1 ✅ 已实现**（PixelCopy 截 WebView 自身画面 → `capture.frame` base64）。
+  - 截屏 `capture.request`：**M3-part1 ✅ 已实现**（软件层 draw 截 WebView 自身画面 → `capture.frame` base64）。
     全屏 MediaProjection 感知（喂 VLM）仍是 **M3-part2 待做**，复用 `pet/java/ScreenCaptureService.java`。
   - `asset.fetch`：**壳侧已通**（PetBridge 读外部素材目录）；**Rust/wasm 侧对接未做**——
     唯一触碰跨平台游戏核心的同步→异步改造，风险高，留作独立 spike（见 §9）。

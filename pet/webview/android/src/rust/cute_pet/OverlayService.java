@@ -17,7 +17,6 @@ import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.hardware.display.DisplayManager;
 import android.os.Build;
-import android.view.PixelCopy;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -32,6 +31,8 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -388,19 +389,16 @@ public class OverlayService extends Service implements PetBridge.Host {
             return;
         }
         final Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            // PixelCopy 直接抓 WebView 的 Surface, 透明通道保留(截的是桌宠自身画面, 非全屏)
-            PixelCopy.request(webView, bmp, copyResult -> {
-                if (copyResult == PixelCopy.SUCCESS) {
-                    pushCapture(bmp);
-                } else {
-                    pushCaptureError("PixelCopy 失败: " + copyResult);
-                }
-            }, main);
-        } else {
-            // minSdk 26, 正常情况下不会走到这里; draw 兜底
+        try {
+            // WebView 渲染在独立 Surface 上, PixelCopy 的 View 重载在部分平台缺失;
+            // 改用软件层 draw —— 对小尺寸桌宠一次性截屏足够, 且全 SDK 可用, 透明通道保留。
+            int prev = webView.getLayerType();
+            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
             webView.draw(new Canvas(bmp));
+            webView.setLayerType(prev, null);
             pushCapture(bmp);
+        } catch (Exception e) {
+            pushCaptureError(String.valueOf(e));
         }
     }
 
