@@ -45,12 +45,12 @@ public final class PetBridge {
         /** 素材目录候选(按优先级) */
         File[] assetDirs();
 
-        // ---- agent 脸(MVP): 丛雨当界面, 真大脑(lilyco-approve)后续接入 ----
+        // ---- agent 脸(MVP): 默认桌宠当界面, 真大脑(lilyco-approve)后续接入 ----
 
-        /** 原生大脑驱动丛雨说一句台词 */
+        /** 原生大脑驱动桌宠说一句台词 */
         void agentSay(String text);
 
-        /** 原生大脑让丛雨弹出审批卡(actions 为动作对象数组, schema 见 docs) */
+        /** 原生大脑让桌宠弹出审批卡(actions 为动作对象数组, schema 见 docs) */
         void agentPropose(JSONArray actions);
 
         /** JS 审批卡"批准/拒绝"后回传: approved + 原样动作数组 */
