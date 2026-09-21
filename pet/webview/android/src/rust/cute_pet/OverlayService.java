@@ -8,7 +8,10 @@ import android.app.Service;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
@@ -29,6 +32,9 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 
 /**
@@ -73,9 +79,20 @@ public class OverlayService extends Service implements PetBridge.Host {
     public void onCreate() {
         super.onCreate();
         createChannel();
-        startForeground(NOTIF_ID, buildNotification());
+        startForegroundWithType();
         createWebView();
         setupOverlay();
+    }
+
+    /** targetSdk 34(Android 14) 起 startForeground 必须带前台服务类型, 否则抛
+     *  MissingForegroundServiceTypeException 直接崩。specialUse 覆盖"常驻浮窗"这一无标准类型可归的用例。 */
+    private void startForegroundWithType() {
+        android.app.Notification n = buildNotification();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else {
+            startForeground(NOTIF_ID, n);
+        }
     }
 
     @Override
@@ -361,9 +378,59 @@ public class OverlayService extends Service implements PetBridge.Host {
 
     @Override
     public void requestCapture() {
-        // M3: 复用 pet/java/ScreenCaptureService.java 的 MediaProjection 链路,
-        // 把帧降采样 + JPEG 后经 Bridge 回传(见 docs/webview-shell-android.md §4.4)。
-        android.util.Log.w(TAG, "capture.request: M3 未实现");
+        if (webView == null) {
+            pushCaptureError("webView 未就绪");
+            return;
+        }
+        final int w = webView.getWidth();
+        final int h = webView.getHeight();
+        if (w <= 0 || h <= 0) {
+            pushCaptureError("webView 尺寸为 0(尚未布局)");
+            return;
+        }
+        final Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        try {
+            // WebView 渲染在独立 Surface 上, PixelCopy 的 View 重载在部分平台缺失;
+            // 改用软件层 draw —— 对小尺寸桌宠一次性截屏足够, 且全 SDK 可用, 透明通道保留。
+            int prev = webView.getLayerType();
+            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+            webView.draw(new Canvas(bmp));
+            webView.setLayerType(prev, null);
+            pushCapture(bmp);
+        } catch (Exception e) {
+            pushCaptureError(String.valueOf(e));
+        }
+    }
+
+    /** 把 Bitmap 压成 PNG(base64, 保留透明)经 Bridge 推给 JS: window.PetNative.onMessage({type:"capture.frame"}) */
+    private void pushCapture(Bitmap bmp) {
+        try {
+            int w = bmp.getWidth();
+            int h = bmp.getHeight();
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            bmp.compress(Bitmap.CompressFormat.PNG, 100, bos);
+            bmp.recycle();
+            String data = android.util.Base64.encodeToString(bos.toByteArray(), android.util.Base64.NO_WRAP);
+            JSONObject p = new JSONObject();
+            p.put("encoding", "base64");
+            p.put("format", "png");
+            p.put("width", w);
+            p.put("height", h);
+            p.put("data", data);
+            bridge.push("capture.frame", p);
+        } catch (Exception e) {
+            pushCaptureError(String.valueOf(e));
+        }
+    }
+
+    private void pushCaptureError(String msg) {
+        try {
+            JSONObject p = new JSONObject();
+            p.put("error", msg);
+            bridge.push("capture.frame", p);
+        } catch (Exception ignored) {
+        }
+        android.util.Log.w(TAG, "capture.request: " + msg);
     }
 
     @Override

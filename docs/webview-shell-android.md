@@ -139,12 +139,23 @@ wm.addView(webView, params);   // params 沿用现有（含拖动 handler）
 | `window.state` | 窗口尺寸/位置/全屏变化 |
 | `lifecycle` | resume / pause / MediaProjection `onStop`（Android 16 会主动停） |
 
-### 4.4 截屏回传的带宽注意
+### 4.4 截屏回传（两种粒度，分两阶段）
 
-MediaProjection 全屏帧经 base64 走 JSBridge **开销很大**。建议：
-- 降采样（如长边 ≤ 720）+ JPEG 质量 0.7
-- 或 Native 侧写入 app 私有文件，只回传 `file://` 路径由 JS fetch
-- 保持现有 ~4s 间隔（VLM 视觉链路不需要更高频）
+**M3-part1（已落地）：截 WebView 自身画面。**
+`capture.request` 把 WebView 临时切到 `LAYER_TYPE_SOFTWARE` 后 `draw(Canvas)` 到 Bitmap
+（即桌宠自己的渲染画面，透明通道保留），压 PNG(base64) 经 `capture.frame` 推回 JS。
+> 注：原本想用 `PixelCopy`，但实测 CI 平台（android-37.2-beta3）的 `PixelCopy` 只有
+> Surface/SurfaceView/Window 重载、**没有 View 重载**，WebView 不能直接传。软件层 draw 全 SDK 可用、能保留透明，
+> 对小尺寸桌宠一次性截屏足够。开销小、无需用户授权、无 MediaProjection 的 Android 16 停服问题。用途：分享/存档桌宠截图。
+
+**M3-part2（待做）：全屏感知喂 VLM。**
+若要让宠物"看见"屏幕（视觉链路），才需要 `MediaProjection` 全屏帧。那套带宽注意如下，
+且要复用 `pet/java/ScreenCaptureService.java` 的前台服务/通知/Android 16 `onStop` 处理：
+
+> MediaProjection 全屏帧经 base64 走 JSBridge **开销很大**。建议：
+> - 降采样（如长边 ≤ 720）+ JPEG 质量 0.7
+> - 或 Native 侧写入 app 私有文件，只回传 `file://` 路径由 JS fetch
+> - 保持现有 ~4s 间隔（VLM 视觉链路不需要更高频）
 
 ---
 
@@ -173,7 +184,7 @@ wasm 侧只剩一句「向壳要素材」，各平台差异收敛到壳里。
 |---|---|---|---|
 | 1 | 悬浮窗定位 | 桌宠浮在其他应用之上，可拖动，位置持久化 | 代码就绪，待真机 |
 | 2 | 透明背景 | 桌宠以外区域能看到下层应用（不是黑/白块） | 代码就绪，待真机 |
-| 3 | 截屏回传 | `capture.request()` → wasm 收到帧，端到端 < 1s | M3 |
+| 3 | 截屏回传 | `capture.request()` → 壳回 `capture.frame`（软件层 draw 截 WebView 自身） | M3-part1 ✅ 壳侧已实现；全屏 MediaProjection 感知 M3-part2 |
 | 4 | wasm 渲染 | Android WebView 上 ≥ 45fps（桌面实测 120fps） | 待真机 |
 | 5 | 素材加载 | `asset.fetch` 拿到角色素材，商业版能显示角色 | 桥已通，Rust 侧对接 M3 |
 | 6 | 音频 | 桌宠语音能播（Android WebView 音频策略需验证） | 待真机 |
@@ -244,8 +255,12 @@ wasm 侧只剩一句「向壳要素材」，各平台差异收敛到壳里。
   ⏳ 仍缺**真机**确认：透明渲染、帧率、拖动手感
 - **M2 Bridge 接通** —— ✅ move / setSize / setPassthrough / clipboard / keyboard / log 已实现；
   ⏳ 待真机联调
-- **M3 截屏 + 素材** —— 桥的 `asset.fetch` 已通（Rust 侧对接未做）；`capture.request` 待接
-  `pet/java/ScreenCaptureService.java`
+- **M3 截屏 + 素材**
+  - 截屏 `capture.request`：**M3-part1 ✅ 已实现**（软件层 draw 截 WebView 自身画面 → `capture.frame` base64）。
+    全屏 MediaProjection 感知（喂 VLM）仍是 **M3-part2 待做**，复用 `pet/java/ScreenCaptureService.java`。
+  - `asset.fetch`：**壳侧已通**（PetBridge 读外部素材目录）；**Rust/wasm 侧对接未做**——
+    唯一触碰跨平台游戏核心的同步→异步改造，风险高，留作独立 spike（见 §9）。
+  - `targetSdkVersion` 33 → **34** ✅（specialUse 前台服务类型，否则 Android 14 直接崩）
 - **M4 评估决策**：与现有原生 Android 构建对比（体积 / 启动 / 帧率 / 维护成本），
   数据化决定是否切换 —— **必须先有真机数据**
 
@@ -289,6 +304,31 @@ webview-c 在 Android 上用不了。
 
 若将来要统一桌面 Windows 壳，webview-mini（200KB exe）是合适的起点，
 但需自行补**透明 + 穿透 + 置顶**的平台代码（标准 webview C API 不提供这些）。
+
+---
+
+## 11. asset.fetch 的 Rust/wasm 侧对接（M3-part2 前的决策记录）
+
+**问题**：`load_asset(p)` 在 wasm 上 `external_asset_dirs()` 返回空 → 角色素材走
+`character_asset_missing_msg`（告诉用户 WASM 无本地文件）。壳已能通过 `PetShell.fetchAsset(path)`
+（JS 桥→`PetBridge.readAssetFile` 读设备外部目录）拿到素材，但 wasm 内核**还不会改走这条桥**。
+
+**难点（为何延后）**：Rust 的 `load_asset` 是**同步**返回 `Vec<u8>`，而桥是 **async(Promise)**。
+调用点散布（chat.rs、run.rs 的图层/字体/语音/vlm_config 等），且 `load_asset` 是**跨平台共享核心**，
+改动必须 `#[cfg(target_arch="wasm32")]` 隔离，不能影响桌面/原生 Android/鸿蒙/网页版。
+
+**推荐方案（待 spike 验证）**：在 wasm 上引入"虚拟资产 FS"——
+1. 桥新增 `asset.list`（枚举外部目录），或壳在启动时把约定素材清单推给 JS；
+2. 内核启动早期（渲染前）**异步预取**用户目录全部素材，灌入一个 `static HashMap<String, Vec<u8>>`；
+3. `load_asset` 在 wasm 下先查这张表，命中即返回，未命中再走原 `CoreAsset::get`/报错。
+
+**不做的替代**：让每处 `load_asset` 调用点变 async 重构量太大、易错，否决。
+
+**前提假设（需用户确认）**：桌宠角色素材体量小（图集/语音/字体），全量预取内存可接受；
+若素材很大，需要改走"按需 fetch + 缓存"的异步加载路径（改动更大）。
+
+**交付顺序**：先做本 §11 的极小 spike（仅 `asset.list` + 一处 `load_asset` 走虚拟 FS 验证可行性），
+再决定是否全量改造。
 
 ---
 
