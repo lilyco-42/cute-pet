@@ -64,12 +64,27 @@ public class OverlayService extends Service implements PetBridge.Host {
     /** Web 内容层在 APK assets 下的目录: file:///android_asset/pet/index.html */
     private static final String CONTENT_URL = "file:///android_asset/pet/index.html";
 
+    /** 网络导入预设: 已获柚子社授权、托管在 lain42.top 的丛雨素材包 */
+    private static final String PRESET_MURASAME_URL =
+            "https://lain42.top/pet/murasame/pet-asset-bundle.json";
+    private static final String ACTION_IMPORT_BUNDLE = "rust.cute_pet.action.IMPORT_BUNDLE";
+
     private WindowManager wm;
     private FrameLayout root;
     private WebView webView;
     private WindowManager.LayoutParams params;
     private PetBridge bridge;
     private final Handler main = new Handler(Looper.getMainLooper());
+
+    /** 网络导入广播: adb 或通知按钮触发, 带 extra "url"(为空则用预设) */
+    private final BroadcastReceiver importReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (ACTION_IMPORT_BUNDLE.equals(intent.getAction())) {
+                importBundle(intent.getStringExtra("url"));
+            }
+        }
+    };
 
     /** 穿透模式: true = 悬浮窗不吃触摸(下层应用可用) */
     private boolean passthrough = false;
@@ -80,9 +95,19 @@ public class OverlayService extends Service implements PetBridge.Host {
     public void onCreate() {
         super.onCreate();
         createChannel();
+        registerImportReceiver();
         startForegroundWithType();
         createWebView();
         setupOverlay();
+    }
+
+    private void registerImportReceiver() {
+        IntentFilter f = new IntentFilter(ACTION_IMPORT_BUNDLE);
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(importReceiver, f, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(importReceiver, f);
+        }
     }
 
     /** targetSdk 34(Android 14) 起 startForeground 必须带前台服务类型, 否则抛
@@ -111,6 +136,10 @@ public class OverlayService extends Service implements PetBridge.Host {
 
     @Override
     public void onDestroy() {
+        try {
+            unregisterReceiver(importReceiver);
+        } catch (Exception ignored) {
+        }
         if (root != null) {
             try {
                 wm.removeView(root);
@@ -476,6 +505,16 @@ public class OverlayService extends Service implements PetBridge.Host {
         agentSay(approved ? "好嘞～我这就去办！" : "明白，那就不动啦。");
     }
 
+    /** 网络导入: 从 pet-asset-bundle.json 地址拉取素材并注入 wasm(url 为空用预设)。 */
+    @Override
+    public void importBundle(String url) {
+        if (url == null || url.isEmpty()) {
+            url = PRESET_MURASAME_URL;
+        }
+        final String u = url;
+        evalJs("window.cutePetImportBundle(" + JSONObject.quote(u) + ")");
+    }
+
     /** 动作对象 -> 中文描述(对齐 lilyco-approve 的 AgentOps.describe) */
     private String describeAction(JSONObject a) {
         if (a == null) {
@@ -524,6 +563,10 @@ public class OverlayService extends Service implements PetBridge.Host {
                 .setContentText("悬浮窗运行中 · 拖动换个位置")
                 .setSmallIcon(android.R.drawable.ic_menu_compass)
                 .setContentIntent(pi)
+                .addAction(android.R.drawable.ic_menu_add, "导入丛雨",
+                        PendingIntent.getBroadcast(this, 1,
+                                new Intent(ACTION_IMPORT_BUNDLE).putExtra("url", PRESET_MURASAME_URL),
+                                Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0))
                 .setOngoing(true)
                 .build();
     }

@@ -117,6 +117,10 @@
 
         if (ld) ld.style.opacity = 0;
         if (window.PetShell) window.PetShell.ready();
+        // 粘性行为: 回注此前网络导入的素材, 再启动引擎(load_asset 会优先返回运行时资产)
+        if (window.cutePetInjectStoredAssets) {
+          try { await window.cutePetInjectStoredAssets(); } catch (e) {}
+        }
         inst.exports.main();
       } catch (e) {
         fail(e);

@@ -97,6 +97,87 @@
     }
   };
 
+  // ---------------- 网络导入(wasm 运行时资产注入) ----------------
+  // 丛雨等第三方素材不进 wasm, 由本逻辑从 URL 拉取并经 cute_pet_register_asset 注入
+  // wasm 线性内存; 之后引擎 load_asset 优先返回。导入结果存 IndexedDB, 页面重载/下次启动
+  // 由 cutePetInjectStoredAssets 自动回注, 形成"粘性行为"(无需每次联网)。
+  function rtAlloc(len) {
+    return wasm_exports.cute_pet_alloc(len);
+  }
+  function rtRegister(path, bytes) {
+    var enc = new TextEncoder();
+    var p = enc.encode(path);
+    var pPtr = rtAlloc(p.length);
+    new Uint8Array(wasm_memory.buffer, pPtr, p.length).set(p);
+    var dPtr = rtAlloc(bytes.length);
+    new Uint8Array(wasm_memory.buffer, dPtr, bytes.length).set(bytes);
+    wasm_exports.cute_pet_register_asset(pPtr, p.length, dPtr, bytes.length);
+  }
+  function idbOpen() {
+    return new Promise(function (res, rej) {
+      var r = indexedDB.open("cute-pet-assets", 1);
+      r.onupgradeneeded = function () {
+        r.result.createObjectStore("files");
+        r.result.createObjectStore("meta");
+      };
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function idbPut(db, store, key, val) {
+    return new Promise(function (res, rej) {
+      var tx = db.transaction(store, "readwrite");
+      tx.objectStore(store).put(val, key);
+      tx.oncomplete = function () { res(); };
+      tx.onerror = function () { rej(tx.error); };
+    });
+  }
+  function idbGetAll(db) {
+    return new Promise(function (res, rej) {
+      var out = [];
+      var tx = db.transaction("files", "readonly");
+      var cur = tx.objectStore("files").openCursor();
+      cur.onsuccess = function (e) {
+        var c = e.target.result;
+        if (c) { out.push([c.key, c.value]); c.continue(); }
+        else { res(out); }
+      };
+      cur.onerror = function () { rej(cur.error); };
+    });
+  }
+  // 启动/重载时回注已存素材(粘性行为); 在 index.html 调 main() 之前调用
+  window.cutePetInjectStoredAssets = function () {
+    return idbOpen().then(function (db) {
+      return idbGetAll(db).then(function (all) {
+        all.forEach(function (kv) { rtRegister(kv[0], kv[1]); });
+      });
+    }).catch(function () {});
+  };
+  // 从 pet-asset-bundle.json 地址导入一个素材包
+  window.cutePetImportBundle = function (url) {
+    return fetch(url).then(function (r) { return r.json(); }).then(function (manifest) {
+      var base = url.slice(0, url.lastIndexOf("/") + 1);
+      var files = manifest.files || [];
+      return idbOpen().then(function (db) {
+        return files.reduce(function (chain, rel) {
+          return chain.then(function () {
+            return fetch(base + rel).then(function (r) { return r.arrayBuffer(); }).then(function (ab) {
+              var bytes = new Uint8Array(ab);
+              return idbPut(db, "files", rel, bytes).then(function () { rtRegister(rel, bytes); });
+            });
+          });
+        }, Promise.resolve()).then(function () {
+          return idbPut(db, "meta", "bundleUrl", url);
+        }).then(function () {
+          location.reload();
+        });
+      });
+    }).catch(function (e) {
+      if (window.PetShell && window.PetShell.log) window.PetShell.log("导入失败: " + e, "error");
+      console.error("cutePetImportBundle failed", e);
+    });
+  };
+
   window.PetShell = {
     isNative: function () {
       return hasNative;
@@ -131,6 +212,10 @@
     },
     log: function (msg, level) {
       post({ method: "log", params: { level: level || "info", msg: String(msg) } });
+    },
+    /** 网络导入: 从 pet-asset-bundle.json 地址拉取素材并注入 wasm(粘性行为) */
+    importBundle: function (url) {
+      return window.cutePetImportBundle(url);
     }
   };
 

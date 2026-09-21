@@ -55,6 +55,9 @@ public final class PetBridge {
 
         /** JS 审批卡"批准/拒绝"后回传: approved + 原样动作数组 */
         void onAgentApproved(boolean approved, JSONArray actions);
+
+        /** 网络导入: 从 pet-asset-bundle.json 地址拉取素材并注入 wasm(url 为空则用预设) */
+        void importBundle(String url);
     }
 
     private static final String TAG = "PetBridge";
