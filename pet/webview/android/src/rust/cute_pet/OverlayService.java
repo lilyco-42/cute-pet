@@ -151,7 +151,7 @@ public class OverlayService extends Service implements PetBridge.Host {
             @Override
             public void onPageFinished(WebView view, String url) {
                 android.util.Log.i(TAG, "page finished: " + url);
-                // MVP: 页面加载完启动内置 mock agent(丛雨演示大脑)。
+                // MVP: 页面加载完启动内置 mock agent(默认桌宠演示大脑)。
                 // 后续接 lilyco-approve 真大脑(router_v13 + AgentOps.runA11y)时移除此行。
                 view.post(() -> evalJs("(window.__mockAgent&&window.__mockAgent.start())"));
             }
@@ -439,7 +439,7 @@ public class OverlayService extends Service implements PetBridge.Host {
 
     // ---------------- agent 脸 (MVP) ----------------
     // 本类只实现"脸"所需的原生侧接线; 真大脑(lilyco-approve 的 router_v13 + AgentOps)
-    // 后续并进 cute-pet 原生安卓层(pet/java), 届时经 agentSay/agentPropose 驱动丛雨,
+    // 后续并进 cute-pet 原生安卓层(pet/java), 届时经 agentSay/agentPropose 驱动桌宠,
     // onAgentApproved 里改调 AgentOps.runA11y 真正执行动作, 而非下面 MVP 的本地模拟。
 
     @Override

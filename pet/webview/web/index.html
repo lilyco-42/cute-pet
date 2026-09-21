@@ -33,7 +33,7 @@
       background: rgba(0,0,0,.45); padding: 6px 8px; border-radius: 6px;
     }
 
-    /* ---- agent 脸：丛雨说台词 + 弹审批卡(MVP) ----
+    /* ---- agent 脸：桌宠说台词 + 弹审批卡(MVP) ----
        窗口默认很小(160x280), 卡片出现时由原生侧 setSize 放大; 这里只管样式。 */
     .agent-ui {
       position: fixed; left: 6px; right: 6px; z-index: 10;
@@ -90,7 +90,7 @@
       const fail = (e) => {
         console.error(e);
         // 真机壳里 app.wasm 随 APK 走, 不会缺; 浏览器(file://)演示缺 wasm 是预期,
-        // 不弹报错框(丛雨 mock agent 仍照常跑)。
+        // 不弹报错框(默认桌宠 mock agent 仍照常跑)。
         if (errBox && window.PetShell && window.PetShell.isNative()) {
           errBox.style.display = "block";
           errBox.textContent = "加载失败：" + ((e && e.message) || e);
@@ -124,7 +124,7 @@
     })();
   </script>
 
-  <!-- 最小 MVP 的内置 mock agent(丛雨当"脸"的演示大脑)。
+  <!-- 最小 MVP 的内置 mock agent(默认桌宠当"脸"的演示大脑)。
        浏览器(无原生桥)下自动启动; 真机壳里由 OverlayService.onPageFinished
        用 evalJs 启动同一个 mock。后续接 lilyco-approve 真大脑时替换此处。 -->
   <script>
@@ -134,7 +134,7 @@
         if (!S || !S.agentSay) {
           return;
         }
-        S.agentSay("喵～我是丛雨，你的桌面小管家。检测到一条微信消息，要我帮你点开吗？");
+        S.agentSay("喵～我是你的桌宠小伙伴，你的桌面小管家。检测到一条微信消息，要我帮你点开吗？");
         setTimeout(function () {
           S.agentPropose([
             { type: "open_app", pkg: "com.tencent.mm", label: "微信" },

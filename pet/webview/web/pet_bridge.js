@@ -134,7 +134,7 @@
     }
   };
 
-  // ---------------- 丛雨当 agent 的脸 (MVP) ----------------
+  // ---------------- 默认桌宠当 agent 的脸 (MVP) ----------------
   // 渲染层: 原生大脑(后续接 lilyco-approve 的 router_v13 + AgentOps)通过
   //   evalJs("window.PetShell.agentSay(...)") / agentPropose(...)
   // 驱动; 浏览器演示用 JS mock agent(见 index.html)直接调这些函数, 不依赖原生桥。
@@ -177,7 +177,7 @@
     }
     currentActions = actions || [];
     if (cardTitleEl) {
-      cardTitleEl.textContent = "丛雨想执行以下操作：";
+      cardTitleEl.textContent = "桌宠想执行以下操作：";
     }
     if (cardActEl) {
       cardActEl.innerHTML = "";
