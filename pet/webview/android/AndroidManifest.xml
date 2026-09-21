@@ -14,12 +14,19 @@
     android:versionCode="1"
     android:versionName="0.4.0-m1">
 
+    <!-- 最低 / 目标 SDK: target=34 才能在现代 Android 上正常跑(见下方前台服务类型) -->
+    <uses-sdk
+        android:minSdkVersion="26"
+        android:targetSdkVersion="34" />
+
     <!-- 悬浮窗(必须, 用户需在设置里手动授权) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- 前台服务(常驻悬浮窗) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- Android 13+ 通知权限 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Android 14 前台服务类型: specialUse 必须配套此权限, 否则 startForeground 抛 SecurityException -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:label="cute-pet"
@@ -37,8 +44,15 @@
             </intent-filter>
         </activity>
 
+        <!-- 悬浮窗宿主服务: specialUse 覆盖"桌面宠物常驻浮窗"这一无标准类型可归的用例。
+             <property> 仅 Google Play 审核用(自由文本), 侧载分发不被系统强制。 -->
         <service
             android:name=".OverlayService"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.foregroundServiceType"
+                android:value="cute-pet desktop pet overlay window (always-on floating companion)" />
+        </service>
     </application>
 </manifest>

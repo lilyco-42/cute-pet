@@ -77,7 +77,7 @@ public final class PetBridge {
             o.put("platform", "android");
             o.put("passthroughSupported", true);
             o.put("assetFetch", true);
-            o.put("capture", false); // M3 才有
+            o.put("capture", true); // M3: PixelCopy 截 WebView 自身画面 -> base64 推 JS
             return o.toString();
         } catch (Exception e) {
             return "{}";
