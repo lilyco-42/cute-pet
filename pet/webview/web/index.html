@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>cute-pet · 悬浮窗壳</title>
+  <link rel="icon" href="data:,">
+  <style>
+    /* 与 pages/index.html 唯一的实质差别: 背景透明。
+       Rust 侧 clear_background(0,0,0,0) 已经是透明清屏(run.rs:873),
+       所以只要页面/画布自身不铺底色, 悬浮窗里看到的就是下层应用。 */
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: transparent;
+      overflow: hidden;
+      -webkit-user-select: none; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: #e8e8ee;
+    }
+    #glcanvas {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      display: block; outline: none; background: transparent;
+    }
+    #loading {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; opacity: .85; text-shadow: 0 1px 2px rgba(0,0,0,.55);
+      transition: opacity .4s ease; pointer-events: none;
+    }
+    #err {
+      position: fixed; left: 8px; right: 8px; bottom: 8px;
+      font-size: 11px; color: #ffb4b4; display: none; white-space: pre-wrap;
+      background: rgba(0,0,0,.45); padding: 6px 8px; border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="glcanvas" tabindex="1"></canvas>
+  <div id="loading">加载中…</div>
+  <div id="err"></div>
+
+  <!-- 顺序要求: canvas 必须在 ply_bundle.js 之前(它加载时就 querySelector("#glcanvas"));
+       pet_bridge.js 更早, 让原生桥在内核起来前可用。 -->
+  <script src="pet_bridge.js"></script>
+  <script src="ply_bundle.js"></script>
+  <script>
+    (async () => {
+      const ld = document.getElementById("loading");
+      const errBox = document.getElementById("err");
+      const fail = (e) => {
+        console.error(e);
+        if (errBox) {
+          errBox.style.display = "block";
+          errBox.textContent = "加载失败：" + ((e && e.message) || e);
+        }
+        if (ld) ld.style.opacity = 0;
+      };
+      window.addEventListener("error", (ev) => fail(ev.error || ev.message));
+
+      try {
+        // 壳环境: 资源来自 APK assets(file://)。WebView 必须开
+        // setAllowFileAccessFromFileURLs / setAllowUniversalAccessFromFileURLs,
+        // 否则 fetch("app.wasm") 会被同源策略挡掉。
+        const bytes = await fetch("app.wasm").then(r => r.arrayBuffer());
+        const obj = await WebAssembly.compile(bytes);
+
+        // 顺序不能反: 插件先挂 importObject.env, 再补缺失桩(见 pages/index.html 注释)
+        register_plugins(plugins);
+        add_missing_functions_stabs(obj);
+
+        const inst = await WebAssembly.instantiate(obj, importObject);
+        wasm_memory = inst.exports.memory;
+        wasm_exports = inst.exports;
+        init_plugins(plugins);
+
+        if (ld) ld.style.opacity = 0;
+        if (window.PetShell) window.PetShell.ready();
+        inst.exports.main();
+      } catch (e) {
+        fail(e);
+      }
+    })();
+  </script>
+</body>
+</html>

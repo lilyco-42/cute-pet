@@ -131,3 +131,15 @@ pet/vendor/macroquad-ply/.github/
 
 # ─────────────────── 含本机路径 / 密钥的本地配置 ───────────────────
 pet/assets/vlm_config.json
+
+# ────────── WebView 壳(pet/webview/android)构建产物 ──────────
+# bin/ = aapt2/d8 中间物 + 调试签名 keystore(含密钥, 绝不能入库)
+# assets/pet/ = build.sh 组装出来的内容层(index.html / pet_bridge.js /
+#               ply_bundle.js / app.wasm)。app.wasm 是构建产物, 且自测模式下
+#               可能含第三方角色素材 —— 一律不入库, 由 build.sh 现组装。
+pet/webview/android/bin/
+pet/webview/android/assets/pet/*
+!pet/webview/android/assets/pet/.gitkeep
+
+# 壳的 CI 产物输出(本地用 --out dist-shell 复现 CI 时产生)
+/dist-shell/

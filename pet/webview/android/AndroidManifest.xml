@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cute-pet · Android WebView 悬浮窗壳(M1 原型)
+
+  设计原则: 壳只依赖 framework API(android.webkit.WebView / WindowManager 悬浮窗),
+  **不依赖 androidx / 第三方库** —— 因此完全可以用 aapt2 + d8 + apksigner 直接构建,
+  不需要 Gradle, 也不需要联网拉依赖(见 build.sh)。
+
+  包名沿用原生版(run.rs 的 Android 素材目录就是 /sdcard/Android/data/rust.cute_pet/files),
+  这样"壳提供的素材"和"原生版外部素材目录"完全重合, 用户放一份两边都能用。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="rust.cute_pet"
+    android:versionCode="1"
+    android:versionName="0.4.0-m1">
+
+    <!-- 悬浮窗(必须, 用户需在设置里手动授权) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- 前台服务(常驻悬浮窗) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 13+ 通知权限 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:label="cute-pet"
+        android:allowBackup="false"
+        android:hardwareAccelerated="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:label="cute-pet"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".OverlayService"
+            android:exported="false" />
+    </application>
+</manifest>
