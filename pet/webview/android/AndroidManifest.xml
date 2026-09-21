@@ -25,6 +25,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- Android 13+ 通知权限 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 网络导入: WebView 从 URL 拉取素材包(丛雨等第三方角色) -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 14 前台服务类型: specialUse 必须配套此权限, 否则 startForeground 抛 SecurityException -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 

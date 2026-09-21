@@ -14,7 +14,7 @@ use serde::Deserialize;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use lazy_ply::components::{chat_panel, ChatMessage, ChatPanelEvents, ChatPanelState};
 
@@ -230,7 +230,21 @@ fn character_asset_missing_msg(p: &str) -> String {
     }
 }
 
+/// 运行时注入的资产(wasm / webview 壳「网络导入」用)。
+/// 原生构建走 external_asset_dirs 读本地文件; 只有 wasm 构建无本地 FS,
+/// load_asset 只读编译期嵌入(rust-embed)。为支持「网络导入」, JS 侧 fetch 素材后
+/// 经 cute_pet_register_asset 写入本表, load_asset 优先返回 —— 这样不重新编译 wasm
+/// 也能在运行时加载第三方角色素材。低频一次性操作, 用 OnceLock + Mutex 足够。
+static RUNTIME_ASSETS: OnceLock<Mutex<HashMap<String, Vec<u8>>>> = OnceLock::new();
+fn runtime_assets() -> &'static Mutex<HashMap<String, Vec<u8>>> {
+    RUNTIME_ASSETS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
 pub(crate) fn load_asset(p: &str) -> anyhow::Result<Vec<u8>> {
+    // 0) 运行时注入(网络导入)优先 —— 让 JS 桥能在不重编 wasm 的情况下塞入素材
+    if let Some(b) = runtime_assets().lock().unwrap().get(p) {
+        return Ok(b.clone());
+    }
     // 1) 用户素材目录优先 —— 商业版靠这一条拿到素材(按优先级逐个尝试)
     for dir in external_asset_dirs() {
         if let Ok(b) = std::fs::read(dir.join(p)) {
@@ -261,6 +275,35 @@ pub(crate) fn load_character_asset_or_warn(p: &str) -> Option<Vec<u8>> {
             None
         }
     }
+}
+
+/// wasm「网络导入」桥: 在 wasm 线性内存分配 len 字节并返回指针, 由 JS 写入素材字节后
+/// 调用 cute_pet_register_asset。用 Vec::forget 持有内存(低频一次性, 泄漏可接受)。
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub extern "C" fn cute_pet_alloc(len: usize) -> *mut u8 {
+    let mut v = Vec::with_capacity(len);
+    let ptr = v.as_mut_ptr();
+    std::mem::forget(v);
+    ptr
+}
+
+/// wasm「网络导入」桥: 注册一个运行时资产(路径 + 字节), 之后 load_asset 优先返回它。
+/// 由 JS 侧 fetch 素材后调用, 使引擎无需重编即可在运行时加载第三方角色素材。
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub extern "C" fn cute_pet_register_asset(
+    p_ptr: *const u8,
+    p_len: usize,
+    d_ptr: *const u8,
+    d_len: usize,
+) {
+    let path = match std::str::from_utf8(unsafe { std::slice::from_raw_parts(p_ptr, p_len) }) {
+        Ok(s) => s.to_string(),
+        Err(_) => return,
+    };
+    let data = unsafe { std::slice::from_raw_parts(d_ptr, d_len) }.to_vec();
+    runtime_assets().lock().unwrap().insert(path, data);
 }
 
 // ---------------- manifest 模型 ----------------
