@@ -1,0 +1,47 @@
+{
+  "character": "default_pet",
+  "name_cn": "桌宠伙伴",
+  "voice_code": "pet",
+  "sets": {
+    "a": {
+      "stand": {
+        "filename": "default_pet",
+        "xoffset": 0,
+        "yoffset": 0
+      },
+      "info": {
+        "dress": [
+          { "dress": "私服", "diff": 1, "layer": "default_body" },
+          { "dress": "私服", "diff": 2, "layer": "default_body" },
+          { "dress": "洋装", "diff": 1, "layer": "default_body" },
+          { "dress": "洋装", "diff": 2, "layer": "default_body" },
+          { "dress": "制服", "diff": 1, "layer": "default_body" },
+          { "dress": "制服", "diff": 2, "layer": "default_body" },
+          { "dress": "裸", "diff": 1, "layer": "default_body" },
+          { "dress": "裸", "diff": 2, "layer": "default_body" },
+          { "dress": "寝間着", "diff": 1, "layer": "default_body" },
+          { "dress": "寝間着", "diff": 2, "layer": "default_body" }
+        ],
+        "face": []
+      },
+      "composition": {
+        "groups": {},
+        "items": {
+          "1": {
+            "layer_type": 0,
+            "name": "default_body",
+            "left": 0,
+            "top": 0,
+            "w": 832,
+            "h": 1216,
+            "opacity": 255,
+            "visible": 1,
+            "layer_id": 1,
+            "group": 0
+          }
+        }
+      },
+      "layer_count": 1
+    }
+  }
+}

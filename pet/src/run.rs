@@ -112,6 +112,9 @@ fn open_llm_hint_page() {
 
 const MANIFEST_PATH: &str = "murasame_manifest.json";
 const LAYER_DIR: &str = "murasame_layers";
+// 内置原创默认吉祥物(随所有构建分发, 合规, 非第三方版权): 商业包缺丛雨素材时回退显示。
+const DEFAULT_PET_MANIFEST: &str = "default_pet_manifest.json";
+const DEFAULT_PET_LAYER_DIR: &str = "default_pet_layers";
 // 缩放: 桌面 1/3(600x850 窗口), 移动端/鸿蒙放大填满屏幕
 #[cfg(any(target_os = "android", target_env = "ohos"))]
 const SCALE: f32 = 0.6;
@@ -572,7 +575,7 @@ fn draw_speech_bubble(text: &str, font: &macroquad::text::Font, cx: f32, char_to
 pub fn window_conf() -> macroquad::conf::Conf {
     macroquad::conf::Conf {
         miniquad_conf: miniquad::conf::Conf {
-            window_title: "丛雨 - 桌宠雏形".to_owned(),
+            window_title: "cute-pet 桌宠".to_owned(),
             window_width: 600,
             window_height: 850,
             high_dpi: true,
@@ -685,18 +688,25 @@ pub fn start() {
 }
 
 pub async fn run() {
-    // 商业构建(无 bundle-murasame)不含角色素材 → 在窗口内绘制"请放置素材"引导, 不再黑屏退出。
-    let manifest_bytes = match load_character_asset_or_warn(MANIFEST_PATH) {
-        Some(b) => b,
-        None => {
-            // 缺素材是预期(商业包默认不含第三方版权角色), 友好提示而非黑屏。
-            eprintln!(
-                "[cute-pet] 未找到角色素材, 改为在窗口内绘制放置引导(软件其余模块化能力不受影响)。"
-            );
-            draw_missing_asset_guide_loop().await;
-            return; // draw_missing_asset_guide_loop 内部为不返回的渲染循环, 此行仅作控制流兜底
-        }
-    };
+    // 优先加载第三方版权角色(丛雨); 缺失时回退到内置原创默认吉祥物(随所有构建分发, 合规),
+    // 两者皆缺(极端情况)才在窗口内绘制"请放置素材"引导。商业包默认走默认吉祥物路径, 不再黑屏。
+    let (manifest_bytes, layer_dir): (Vec<u8>, &str) =
+        match load_character_asset_or_warn(MANIFEST_PATH) {
+            Some(b) => (b, LAYER_DIR),
+            None => match load_asset(DEFAULT_PET_MANIFEST).ok() {
+                Some(b) => {
+                    eprintln!(
+                        "[cute-pet] 未找到第三方版权角色素材, 回退到内置默认吉祥物(原创, 可自由使用)。"
+                    );
+                    (b, DEFAULT_PET_LAYER_DIR)
+                }
+                None => {
+                    eprintln!("[cute-pet] 未找到任何角色素材, 在窗口内绘制放置引导。");
+                    draw_missing_asset_guide_loop().await;
+                    return; // draw_missing_asset_guide_loop 内部为不返回的渲染循环, 此行仅作控制流兜底
+                }
+            },
+        };
     let mut manifest: Manifest = serde_json::from_slice(&manifest_bytes).expect("解析 manifest.json");
     println!("加载角色: {} ({}) voice={}", manifest.name_cn, manifest.character, manifest.voice_code);
 
@@ -740,7 +750,7 @@ pub async fn run() {
 
     let mut textures: HashMap<u32, Texture2D> = HashMap::new();
     for (id, item) in &set_meta.composition.items {
-        if let Ok(bytes) = load_asset(&format!("{LAYER_DIR}/a_{id}.png")) {
+        if let Ok(bytes) = load_asset(&format!("{layer_dir}/a_{id}.png")) {
             textures.insert(item.layer_id, Texture2D::from_file_with_format(&bytes, None));
         }
     }
@@ -933,7 +943,7 @@ pub async fn run() {
     #[cfg(target_os = "macos")]
     macos::make_transparent_pet_window();
     #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-    linux::make_transparent_pet_window("丛雨 - 桌宠雏形");
+    linux::make_transparent_pet_window("cute-pet 桌宠");
 
     // 拖拽移动
     let mut dragging = false;

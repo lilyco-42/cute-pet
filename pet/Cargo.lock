@@ -622,7 +622,7 @@ dependencies = [
 
 [[package]]
 name = "cute-pet"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
