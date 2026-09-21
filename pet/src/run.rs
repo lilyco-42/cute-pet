@@ -596,6 +596,83 @@ pub fn window_conf() -> macroquad::conf::Conf {
     }
 }
 
+/// 角色素材缺失时, 在窗口内持续绘制中文"请放置素材"引导面板。
+///
+/// 商业包(无 `bundle-murasame`)默认不含柚子社版权立绘, 缺素材是预期而非崩溃:
+/// 原先直接 `return` 导致黑屏, 现改为画出引导(始终随包分发的 `font_wenkai.ttf` 渲染中文),
+/// 告诉用户把素材放到哪个目录, 覆盖桌面 / 原生 Android APK / WebView 壳 wasm 全平台。
+async fn draw_missing_asset_guide_loop() {
+    let msg = character_asset_missing_msg(MANIFEST_PATH);
+
+    // 字体为核心素材, 商业构建也随包, 必然可用; 万一缺失则退回纯日志(仍不 panic)。
+    let font = match load_asset("font_wenkai.ttf")
+        .ok()
+        .and_then(|b| macroquad::text::load_ttf_font_from_bytes(&b).ok())
+    {
+        Some(f) => f,
+        None => {
+            eprintln!("[cute-pet] 引导字体缺失, 无法在窗口内绘制, 仅打印到日志:\n{msg}");
+            loop {
+                next_frame().await;
+            }
+        }
+    };
+
+    let ui_scale = if cfg!(any(target_os = "android", target_env = "ohos")) {
+        (screen_width() / 400.0).clamp(1.0, 3.5)
+    } else {
+        1.0
+    };
+    let font_size = (18.0 * ui_scale).round() as u16;
+    let pad = 22.0 * ui_scale;
+    let line_gap = font_size as f32 * 0.5;
+    let wrap_w = screen_width() - pad * 2.0;
+
+    loop {
+        // 深色半透明底, 保证中文可读(原生 Android 透明窗口下也清晰可见)
+        clear_background(MacroquadColor::new(0.04, 0.05, 0.09, 0.94));
+        draw_rectangle(
+            pad * 0.5,
+            pad * 0.5,
+            screen_width() - pad,
+            screen_height() - pad,
+            MacroquadColor::new(0.10, 0.12, 0.18, 0.96),
+        );
+
+        let mut top = pad + font_size as f32;
+        for (i, line) in msg.lines().enumerate() {
+            let wrapped = macroquad::text::wrap_text(line, Some(&font), font_size, 1.0, wrap_w);
+            let dims = macroquad::text::measure_multiline_text(
+                &wrapped,
+                Some(&font),
+                font_size,
+                1.0,
+                Some(1.4),
+            );
+            // 首行(标题)高亮, 其余常规白字
+            let color = if i == 0 {
+                MacroquadColor::new(1.0, 0.82, 0.36, 1.0)
+            } else {
+                MacroquadColor::new(0.95, 0.97, 1.0, 1.0)
+            };
+            macroquad::text::draw_multiline_text_ex(
+                &wrapped,
+                pad,
+                top + dims.offset_y,
+                Some(1.4),
+                macroquad::text::TextParams {
+                    font: Some(&font),
+                    font_size,
+                    color,
+                    ..Default::default()
+                },
+            );
+            top += dims.height + line_gap;
+        }
+        next_frame().await;
+    }
+}
+
 // ---------------- 入口 ----------------
 
 /// 同步入口: 装配窗口并驱动 [`run`]。
@@ -608,10 +685,17 @@ pub fn start() {
 }
 
 pub async fn run() {
-    // 商业构建(无 bundle-murasame)不含角色素材 → 打印提示后退出渲染循环, 不 panic。
-    let Some(manifest_bytes) = load_character_asset_or_warn(MANIFEST_PATH) else {
-        eprintln!("[cute-pet] 未找到角色素材, 退出渲染循环(软件其余模块化能力不受影响)。");
-        return;
+    // 商业构建(无 bundle-murasame)不含角色素材 → 在窗口内绘制"请放置素材"引导, 不再黑屏退出。
+    let manifest_bytes = match load_character_asset_or_warn(MANIFEST_PATH) {
+        Some(b) => b,
+        None => {
+            // 缺素材是预期(商业包默认不含第三方版权角色), 友好提示而非黑屏。
+            eprintln!(
+                "[cute-pet] 未找到角色素材, 改为在窗口内绘制放置引导(软件其余模块化能力不受影响)。"
+            );
+            draw_missing_asset_guide_loop().await;
+            return; // draw_missing_asset_guide_loop 内部为不返回的渲染循环, 此行仅作控制流兜底
+        }
     };
     let mut manifest: Manifest = serde_json::from_slice(&manifest_bytes).expect("解析 manifest.json");
     println!("加载角色: {} ({}) voice={}", manifest.name_cn, manifest.character, manifest.voice_code);
