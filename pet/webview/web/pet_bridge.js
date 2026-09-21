@@ -134,6 +134,106 @@
     }
   };
 
+  // ---------------- 丛雨当 agent 的脸 (MVP) ----------------
+  // 渲染层: 原生大脑(后续接 lilyco-approve 的 router_v13 + AgentOps)通过
+  //   evalJs("window.PetShell.agentSay(...)") / agentPropose(...)
+  // 驱动; 浏览器演示用 JS mock agent(见 index.html)直接调这些函数, 不依赖原生桥。
+  // 审批卡"批准/拒绝"按钮 -> agentApprove() -> 有原生桥则回传 agent.approve, 否则本地模拟。
+
+  var bubbleEl = document.getElementById("agent-bubble");
+  var cardEl = document.getElementById("agent-card");
+  var cardTitleEl = cardEl ? cardEl.querySelector(".ac-title") : null;
+  var cardActEl = cardEl ? cardEl.querySelector(".ac-act") : null;
+  var currentActions = [];
+
+  /** 动作类型 -> 中文描述(对齐 lilyco-approve 的 AgentOps.describe) */
+  function describeAction(a) {
+    if (!a) {
+      return "(空)";
+    }
+    switch (a.type) {
+      case "tap_text": return "点击文字：" + (a.text || "");
+      case "tap": return "点击坐标 (" + (a.x | 0) + ", " + (a.y | 0) + ")";
+      case "input": return "输入文字：" + (a.text || "");
+      case "fill_text": return "填写 " + (a.label || "") + " = " + (a.text || "");
+      case "open_app": return "打开应用：" + (a.label || a.pkg || "");
+      case "back": return "返回";
+      case "scroll_down": return "向下滚动";
+      default: return String(a.type || "?");
+    }
+  }
+
+  function renderBubble(text) {
+    if (!bubbleEl) {
+      return;
+    }
+    bubbleEl.textContent = text || "";
+    bubbleEl.style.display = "block";
+  }
+
+  function renderCard(actions) {
+    if (!cardEl) {
+      return;
+    }
+    currentActions = actions || [];
+    if (cardTitleEl) {
+      cardTitleEl.textContent = "丛雨想执行以下操作：";
+    }
+    if (cardActEl) {
+      cardActEl.innerHTML = "";
+      currentActions.forEach(function (a) {
+        var line = document.createElement("div");
+        line.textContent = "· " + describeAction(a);
+        cardActEl.appendChild(line);
+      });
+    }
+    cardEl.style.display = "block";
+    // 卡片出现时放大窗口(原生侧才生效, 浏览器里 setSize 是 no-op)
+    if (hasNative) {
+      window.PetShell.setSize(220, 360);
+    }
+  }
+
+  function hideCard() {
+    if (cardEl) {
+      cardEl.style.display = "none";
+    }
+    if (hasNative) {
+      window.PetShell.setSize(160, 280);
+    }
+  }
+
+  function onAgentDecision(approved) {
+    var verb = approved ? "批准" : "拒绝";
+    hideCard();
+    if (hasNative) {
+      post({
+        method: "agent.approve",
+        params: { approved: !!approved, actions: currentActions }
+      });
+    } else {
+      console.log("[mock agent] 用户" + verb + "了动作:", currentActions);
+      renderBubble(approved ? "好嘞～我这就去办！" : "明白，那就不动啦。");
+    }
+  }
+
+  // 审批卡按钮接线(只挂一次)
+  if (cardEl) {
+    var okBtn = cardEl.querySelector(".ac-ok");
+    var noBtn = cardEl.querySelector(".ac-no");
+    if (okBtn) {
+      okBtn.addEventListener("click", function () { onAgentDecision(true); });
+    }
+    if (noBtn) {
+      noBtn.addEventListener("click", function () { onAgentDecision(false); });
+    }
+  }
+
+  // 暴露给原生桥(通过 evalJs 调用)与本地 mock agent
+  window.PetShell.agentSay = renderBubble;
+  window.PetShell.agentPropose = renderCard;
+  window.PetShell.agentApprove = onAgentDecision;
+
   // JS 侧异常回传 logcat, 免得 adb 看不到 WebView 里的报错
   var origError = console.error;
   console.error = function () {

@@ -32,12 +32,52 @@
       font-size: 11px; color: #ffb4b4; display: none; white-space: pre-wrap;
       background: rgba(0,0,0,.45); padding: 6px 8px; border-radius: 6px;
     }
+
+    /* ---- agent 脸：丛雨说台词 + 弹审批卡(MVP) ----
+       窗口默认很小(160x280), 卡片出现时由原生侧 setSize 放大; 这里只管样式。 */
+    .agent-ui {
+      position: fixed; left: 6px; right: 6px; z-index: 10;
+      font-size: 12px; line-height: 1.45; color: #1c1c22;
+      pointer-events: none;
+    }
+    #agent-bubble {
+      top: 6px; display: none;
+      background: rgba(255,255,255,.92); padding: 7px 10px; border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.28); max-width: 92%;
+    }
+    #agent-card {
+      bottom: 6px; display: none; pointer-events: auto;
+      background: rgba(20,20,28,.92); color: #e8e8ee; padding: 10px;
+      border-radius: 12px; box-shadow: 0 3px 12px rgba(0,0,0,.4);
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    #agent-card .ac-title { font-weight: 600; margin-bottom: 6px; }
+    #agent-card .ac-act {
+      font-size: 11px; opacity: .8; margin: 2px 0 8px; padding-left: 8px;
+      border-left: 2px solid rgba(255,255,255,.3);
+    }
+    #agent-card .ac-btns { display: flex; gap: 8px; }
+    #agent-card button {
+      flex: 1; border: 0; border-radius: 8px; padding: 7px 0; font-size: 12px;
+      cursor: pointer; color: #fff;
+    }
+    #agent-card .ac-ok { background: #4a8c5b; }
+    #agent-card .ac-no { background: #8c4a4a; }
   </style>
 </head>
 <body>
   <canvas id="glcanvas" tabindex="1"></canvas>
   <div id="loading">加载中…</div>
   <div id="err"></div>
+  <div id="agent-bubble" class="agent-ui"></div>
+  <div id="agent-card" class="agent-ui">
+    <div class="ac-title"></div>
+    <div class="ac-act"></div>
+    <div class="ac-btns">
+      <button class="ac-ok">批准</button>
+      <button class="ac-no">拒绝</button>
+    </div>
+  </div>
 
   <!-- 顺序要求: canvas 必须在 ply_bundle.js 之前(它加载时就 querySelector("#glcanvas"));
        pet_bridge.js 更早, 让原生桥在内核起来前可用。 -->
@@ -49,7 +89,9 @@
       const errBox = document.getElementById("err");
       const fail = (e) => {
         console.error(e);
-        if (errBox) {
+        // 真机壳里 app.wasm 随 APK 走, 不会缺; 浏览器(file://)演示缺 wasm 是预期,
+        // 不弹报错框(丛雨 mock agent 仍照常跑)。
+        if (errBox && window.PetShell && window.PetShell.isNative()) {
           errBox.style.display = "block";
           errBox.textContent = "加载失败：" + ((e && e.message) || e);
         }
@@ -80,6 +122,32 @@
         fail(e);
       }
     })();
+  </script>
+
+  <!-- 最小 MVP 的内置 mock agent(丛雨当"脸"的演示大脑)。
+       浏览器(无原生桥)下自动启动; 真机壳里由 OverlayService.onPageFinished
+       用 evalJs 启动同一个 mock。后续接 lilyco-approve 真大脑时替换此处。 -->
+  <script>
+    window.__mockAgent = {
+      start: function () {
+        var S = window.PetShell;
+        if (!S || !S.agentSay) {
+          return;
+        }
+        S.agentSay("喵～我是丛雨，你的桌面小管家。检测到一条微信消息，要我帮你点开吗？");
+        setTimeout(function () {
+          S.agentPropose([
+            { type: "open_app", pkg: "com.tencent.mm", label: "微信" },
+            { type: "tap_text", text: "文件传输助手" },
+            { type: "tap", x: 540, y: 1180 }
+          ]);
+        }, 1300);
+      }
+    };
+    // 浏览器演示: 没有原生桥就本地跑 mock(真机由原生触发, 避免重复)
+    if (window.PetShell && !window.PetShell.isNative()) {
+      window.__mockAgent.start();
+    }
   </script>
 </body>
 </html>

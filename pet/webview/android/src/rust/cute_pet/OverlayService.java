@@ -32,6 +32,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -150,6 +151,9 @@ public class OverlayService extends Service implements PetBridge.Host {
             @Override
             public void onPageFinished(WebView view, String url) {
                 android.util.Log.i(TAG, "page finished: " + url);
+                // MVP: 页面加载完启动内置 mock agent(丛雨演示大脑)。
+                // 后续接 lilyco-approve 真大脑(router_v13 + AgentOps.runA11y)时移除此行。
+                view.post(() -> evalJs("(window.__mockAgent&&window.__mockAgent.start())"));
             }
         });
         webView.setWebChromeClient(new WebChromeClient());
@@ -431,6 +435,63 @@ public class OverlayService extends Service implements PetBridge.Host {
         } catch (Exception ignored) {
         }
         android.util.Log.w(TAG, "capture.request: " + msg);
+    }
+
+    // ---------------- agent 脸 (MVP) ----------------
+    // 本类只实现"脸"所需的原生侧接线; 真大脑(lilyco-approve 的 router_v13 + AgentOps)
+    // 后续并进 cute-pet 原生安卓层(pet/java), 届时经 agentSay/agentPropose 驱动丛雨,
+    // onAgentApproved 里改调 AgentOps.runA11y 真正执行动作, 而非下面 MVP 的本地模拟。
+
+    @Override
+    public void agentSay(String text) {
+        if (text == null) {
+            text = "";
+        }
+        evalJs("window.PetShell&&window.PetShell.agentSay(" + JSONObject.quote(text) + ")");
+    }
+
+    @Override
+    public void agentPropose(JSONArray actions) {
+        if (actions == null) {
+            return;
+        }
+        evalJs("window.PetShell&&window.PetShell.agentPropose(" + actions.toString() + ")");
+    }
+
+    @Override
+    public void onAgentApproved(boolean approved, JSONArray actions) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(approved ? "用户批准了 " : "用户拒绝了 ");
+        sb.append(actions == null ? 0 : actions.length()).append(" 个动作:");
+        if (actions != null) {
+            for (int i = 0; i < actions.length(); i++) {
+                try {
+                    sb.append("\n  - ").append(describeAction(actions.optJSONObject(i)));
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        android.util.Log.i(TAG, "[mock-agent] " + sb);
+        // MVP: 仅本地模拟执行(真大脑接入后这里改调 AgentOps.runA11y)
+        agentSay(approved ? "好嘞～我这就去办！" : "明白，那就不动啦。");
+    }
+
+    /** 动作对象 -> 中文描述(对齐 lilyco-approve 的 AgentOps.describe) */
+    private String describeAction(JSONObject a) {
+        if (a == null) {
+            return "(空)";
+        }
+        String t = a.optString("type", "");
+        switch (t) {
+            case "tap_text": return "点击文字：" + a.optString("text");
+            case "tap": return "点击坐标 (" + a.optInt("x") + ", " + a.optInt("y") + ")";
+            case "input": return "输入文字：" + a.optString("text");
+            case "fill_text": return "填写 " + a.optString("label") + " = " + a.optString("text");
+            case "open_app": return "打开应用：" + a.optString("label", a.optString("pkg"));
+            case "back": return "返回";
+            case "scroll_down": return "向下滚动";
+            default: return t;
+        }
     }
 
     @Override

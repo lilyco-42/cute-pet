@@ -261,6 +261,9 @@ wasm 侧只剩一句「向壳要素材」，各平台差异收敛到壳里。
   - `asset.fetch`：**壳侧已通**（PetBridge 读外部素材目录）；**Rust/wasm 侧对接未做**——
     唯一触碰跨平台游戏核心的同步→异步改造，风险高，留作独立 spike（见 §9）。
   - `targetSdkVersion` 33 → **34** ✅（specialUse 前台服务类型，否则 Android 14 直接崩）
+- **M5 丛雨当 agent 的脸（MVP）** ✅ Bridge 协议扩展（`agent.approve` + `agentSay`/`agentPropose`）
+  + 内置 mock agent 端到端可演示（浏览器 `file://` / 真机壳均跑通）；
+  真大脑（lilyco-approve 的 `router_v13` + `AgentOps`）对接契约见 §12.4，待并入原生层 `pet/java`
 - **M4 评估决策**：与现有原生 Android 构建对比（体积 / 启动 / 帧率 / 维护成本），
   数据化决定是否切换 —— **必须先有真机数据**
 
@@ -329,6 +332,70 @@ webview-c 在 Android 上用不了。
 
 **交付顺序**：先做本 §11 的极小 spike（仅 `asset.list` + 一处 `load_asset` 走虚拟 FS 验证可行性），
 再决定是否全量改造。
+
+---
+
+## 12. 丛雨当 agent 的脸（MVP，2026-09-21）
+
+把 WebView 壳扩成「agent 的脸」：**丛雨（Web 内容层）负责说台词 + 弹审批卡 + 收批准**；
+真大脑（lilyco-approve 的 `router_v13` + `AgentOps` 无障碍执行）**暂不合并进此壳**，
+留对接契约（§12.4）。WebView 壳跑不了 llama.cpp、碰不到无障碍服务，大脑必须留原生层。
+
+### 12.1 Bridge 协议扩展（agent 脸）
+
+新增：
+
+**JS → Native**（用户点审批卡后，`PetBridge.postMessage`）
+| 方法 | 用途 |
+|---|---|
+| `agent.approve { approved:bool, actions:[...] }` | 丛雨弹审批卡，用户点「批准/拒绝」后回传；`actions` 为原样动作对象数组 |
+
+**Native → JS**（真大脑驱动丛雨，经 `evalJs` 调 `window.PetShell.*`）
+| 函数 | 用途 |
+|---|---|
+| `window.PetShell.agentSay(text)` | 丛雨说一句台词（顶部气泡） |
+| `window.PetShell.agentPropose(actions[])` | 丛雨弹审批卡（底部深色卡，列出动作 + 批准/拒绝按钮） |
+| `window.PetShell.agentApprove(approved, actions)` | JS 内部用：按钮点击 → 回传 native / 浏览器本地模拟 |
+
+Java 侧新增 `PetBridge.Host` 方法 `agentSay(String)` / `agentPropose(JSONArray)` / `onAgentApproved(boolean, JSONArray)`；
+`OverlayService` 实现它们，并在 `onPageFinished` 启动内置 mock agent（演示大脑）。
+
+### 12.2 动作 schema（对齐 lilyco-approve 的 AgentAction）
+
+审批卡里每个动作对象，字段对齐 `lilyco-approve` 的 `AgentAction` sealed interface：
+
+| type | 字段 | 中文描述（`describeAction`） |
+|---|---|---|
+| `tap_text` | `text` | 点击文字："xxx" |
+| `tap` | `x`, `y` | 点击坐标 (x, y) |
+| `input` | `text` | 输入文字："xxx" |
+| `fill_text` | `label`, `text` | 填写 label = text |
+| `open_app` | `pkg`, `label` | 打开应用：label |
+| `back` | — | 返回 |
+| `scroll_down` | — | 向下滚动 |
+
+> `describeAction` 在 JS（`pet_bridge.js`）与 Java（`OverlayService.describeAction`）两端各实现一份，
+> 保证审批卡展示与 logcat 日志描述一致。
+
+### 12.3 最小可演示路径
+
+- **浏览器（无原生桥）**：直接 `file://` 打开 `pet/webview/web/index.html`，
+  内置 JS mock agent 自动跑：丛雨说一句 → 1.3s 后弹审批卡（open_app 微信 + tap_text + tap）→
+  点「批准」本地模拟执行并说「好嘞～我这就去办！」。
+- **真机壳**：`OverlayService.onPageFinished` 用 `evalJs` 启动同一个 mock agent，
+  用户点「批准」→ `agent.approve` 回 native → `onAgentApproved` 打印 `describe` 日志
+  （MVP 仅模拟，不真执行无障碍）。
+
+### 12.4 接 lilyco-approve 真大脑的对接契约
+
+后续把真大脑并进 cute-pet 原生安卓层（`pet/java`）时：
+
+1. 真大脑产出「台词 + 动作列表」，调用 `agentSay` / `agentPropose` 驱动丛雨（复用本壳 Bridge）。
+2. 用户点「批准」→ `onAgentApproved(true, actions)` 里**改调 `AgentOps.runA11y(actions, ctx)`**
+   真正执行无障碍动作（替换 MVP 的本地模拟 log）。
+3. `OverlayService` 里 `onPageFinished` 启动 mock agent 的那一行**删除**，改由真大脑生命周期驱动。
+4. 动作 schema 已与 `AgentAction` 对齐，无需再转换；若 lilyco-approve 新增动作类型，
+   需在 JS/Java 两处 `describeAction` 同步补描述。
 
 ---
 
