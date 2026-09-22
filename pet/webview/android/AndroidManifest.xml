@@ -34,7 +34,11 @@
         android:label="cute-pet"
         android:allowBackup="false"
         android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <!-- usesCleartextTraffic: 仅用于可选的本地/局域网 TTS(http://host:7860, 见 PREF_TTS_URL)。
+             Android 9+ 默认禁明文, 不开则语音会静默失败。壳不进 Release(artifact-only),
+             且语音默认关闭(未配置 tts_url 时不发任何请求) -> 影响面受控。 -->
 
         <activity
             android:name=".MainActivity"

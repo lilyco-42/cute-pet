@@ -106,10 +106,33 @@ echo "platform  : $(basename "$PLAT")"
 
 # ---------------- 2. 组装 Web 内容层 ----------------
 
+# 壳内中文 TTS 的大文件(espeak-ng.wasm 18MB)按仓库惯例**不进 git**, 缺失则在此拉取。
+# (voices/*.bin 不再拉取: 那是 wasm TTS 的依赖, 已归档为默认关闭 —— 壳内离线语音
+#  由原生 sherpa-onnx 接管, 见下方 3.5 节。)
+web_src="$repo_root/pet/webview/web"
+zk="$web_src/vendor/kokoro-zh"
+mkdir -p "$zk" "$web_src/voices"
+if [ ! -f "$zk/espeak-ng.wasm" ]; then
+  echo "拉取 espeak-ng.wasm (中文 G2P, 18MB) ..."
+  curl -fsSL -o "$zk/espeak-ng.wasm" \
+    "https://github.com/chalecao/kokoro-multilang-zh/raw/main/dist/espeak-ng.wasm" \
+    || { echo "espeak-ng.wasm 拉取失败"; exit 1; }
+fi
+
+# 组装前清掉旧产物: cp -r 对已存在的目标目录会拷成嵌套(vendor/vendor/...),
+# 必须从干净状态组装, 保证可重复构建。
+rm -rf "$out_dir/assets"
+
 assets="$out_dir/assets/pet"
 mkdir -p "$assets"
 cp "$repo_root/pet/webview/web/index.html"     "$assets/index.html"
 cp "$repo_root/pet/webview/web/pet_bridge.js"  "$assets/pet_bridge.js"
+# 壳内中文 TTS(WebView 内合成): 引擎脚本 + 其依赖(自带 transformers.js 的 kokoro.web.js
+# 与中文 G2P 的 espeak-ng.wasm；wasm 必须与 kokoro.web.js 同目录)
+cp "$repo_root/pet/webview/web/pet_tts_local.js" "$assets/pet_tts_local.js"
+if [ -d "$repo_root/pet/webview/web/vendor" ]; then
+  cp -r "$repo_root/pet/webview/web/vendor" "$assets/vendor"
+fi
 cp "$repo_root/pages/ply_bundle.js"            "$assets/ply_bundle.js"
 
 if [ "$skip_wasm" -eq 0 ]; then
@@ -129,6 +152,45 @@ echo "内容层    : $(du -sh "$assets" | cut -f1) (index.html / pet_bridge.js /
 build="$out_dir/build"
 rm -rf "$build"
 mkdir -p "$build/obj" "$build/dex" "$build/gen"
+
+# ---- 3.5 壳内离线 TTS(sherpa-onnx)依赖 ----
+# AAR/classes.jar + arm64 .so + 模型, 按 third_party/cache 惯例**不进 git**,
+# 缺失则拉取(已存在则离线复用)。版本 1.13.8: 已内置 OfflineTtsZipVoiceModelConfig,
+# 第二步换 ZipVoice + 丛雨参考音无需升级运行时(参考音走用户素材目录, 合规)。
+tp="$here/third_party"
+cache="$tp/cache"
+mkdir -p "$cache"
+aar="$cache/sherpa-onnx-1.13.8.aar"
+mtar="$cache/vits-icefall-zh-aishell3.tar.bz2"
+kjar="$cache/kotlin-stdlib-2.0.21.jar"
+[ -f "$aar" ] || curl -fsSL -o "$aar" \
+  "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-1.13.8.aar"
+[ -f "$mtar" ] || curl -fsSL -o "$mtar" \
+  "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-icefall-zh-aishell3.tar.bz2"
+# sherpa-onnx 的 Java 层是 Kotlin 编译的, 运行时依赖 kotlin-stdlib(Intrinsics 等),
+# 不一起 dex 上机就是 NoClassDefFoundError —— 这个坑没有编译期报错, 只在运行时炸。
+[ -f "$kjar" ] || curl -fsSL -o "$kjar" \
+  "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/2.0.21/kotlin-stdlib-2.0.21.jar"
+
+aarx="$build/aar"
+mkdir -p "$aarx" "$build/lib/arm64-v8a"
+unzip -oq "$aar" -d "$aarx"
+cp "$aarx/classes.jar" "$build/classes.jar"
+cp "$aarx"/jni/arm64-v8a/*.so "$build/lib/arm64-v8a/"
+
+# 模型挑必需件进 assets(与 TtsEngine.MODEL_DIR 对应)。rule.far 是 180MB 的
+# jieba 大词典, **绝不进包** —— 数字/日期读法用 date.fst+number.fst 已够(官方 README 同款)。
+mex="$cache/model-extract"
+mkdir -p "$mex"
+[ -d "$mex/vits-icefall-zh-aishell3" ] || tar -xjf "$mtar" -C "$mex"
+mtgt="$assets/tts/vits-icefall-zh-aishell3"
+mkdir -p "$mtgt"
+cp "$mex/vits-icefall-zh-aishell3/model.onnx" \
+   "$mex/vits-icefall-zh-aishell3/lexicon.txt" \
+   "$mex/vits-icefall-zh-aishell3/tokens.txt" \
+   "$mex/vits-icefall-zh-aishell3/date.fst" \
+   "$mex/vits-icefall-zh-aishell3/number.fst" "$mtgt/"
+echo "tts       : $mtgt ($(du -sh "$mtgt" | cut -f1))"
 
 # 原生 Windows 工具(aapt2/javac/d8)同样不认 POSIX 绝对路径, 统一给 Windows 形态
 BUILD_WIN="$(winpath "$build")"
@@ -151,24 +213,33 @@ echo "aapt2 link ..."
 echo "javac ..."
 # argfile 里也必须是 Windows 路径: javac 会把 /c/... 当成 \c\...(盘符相对路径)
 find "$here/src" -name '*.java' | while read -r f; do winpath "$f"; done > "$build/sources.txt"
+# classpath 分隔符: Windows 的 javac 要 ';', Linux(CI) 要 ':'
+if command -v cygpath >/dev/null 2>&1; then CP_SEP=";"; else CP_SEP=":"; fi
+CLASSES_JAR="$(winpath "$build/classes.jar")"
+KOTLIN_JAR="$(winpath "$kjar")"
 javac -nowarn -encoding UTF-8 \
-  -cp "$ANDROID_JAR" \
+  -cp "$ANDROID_JAR$CP_SEP$CLASSES_JAR" \
   -d "$OBJ_WIN" \
   @"$(winpath "$build/sources.txt")"
 
 echo "d8 ..."
 class_args="$(find "$build/obj" -name '*.class' | while read -r f; do winpath "$f"; done | tr '\n' ' ')"
+# sherpa-onnx 的 classes.jar 与 kotlin-stdlib 也要一起 dex(不只是当 --lib 引用)
 if [ -x "$D8" ]; then
-  "$D8" --lib "$ANDROID_JAR" --output "$DEX_WIN" $class_args
+  "$D8" --lib "$ANDROID_JAR" --lib "$CLASSES_JAR" --lib "$KOTLIN_JAR" \
+    --output "$DEX_WIN" "$CLASSES_JAR" "$KOTLIN_JAR" $class_args
 else
-  java -jar "$D8_JAR" --lib "$ANDROID_JAR" --output "$DEX_WIN" $class_args
+  java -jar "$D8_JAR" --lib "$ANDROID_JAR" --lib "$CLASSES_JAR" --lib "$KOTLIN_JAR" \
+    --output "$DEX_WIN" "$CLASSES_JAR" "$KOTLIN_JAR" $class_args
 fi
 
-echo "打包 assets + dex ..."
+echo "打包 assets + dex + lib ..."
 # assets: aapt2 link 无法事后追加目录, 这里用 zip 直接塞进 APK 根目录树
 (cd "$out_dir/assets" && zip -qr "$APK_WIN" pet)
 # dex 必须在 APK 根
 (cd "$build/dex" && zip -qj "$APK_WIN" classes.dex)
+# 原生库: lib/<abi>/*.so(System.loadLibrary("sherpa-onnx-jni") 按 ABI 找这里)
+(cd "$build" && zip -qr "$APK_WIN" lib)
 
 # ---------------- 4. 对齐 + 签名 ----------------
 

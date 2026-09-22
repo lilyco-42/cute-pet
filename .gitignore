@@ -141,5 +141,14 @@ pet/webview/android/bin/
 pet/webview/android/assets/pet/*
 !pet/webview/android/assets/pet/.gitkeep
 
+# 壳内中文 TTS 的大文件: espeak-ng.wasm(18MB, 中文 G2P) 由 build.sh 缺失时拉取, 不进库。
+# (注: 上面历史遗留的 `*.wasm` 那行行尾带 `#` 注释 —— .gitignore 不支持行尾注释,
+#  该模式实际无效; 这里用显式路径, 不受影响。)
+pet/webview/web/vendor/kokoro-zh/espeak-ng.wasm
+
+# 壳内离线 TTS(sherpa-onnx)的第三方构建输入: AAR(48MB) / 中文模型包(31MB) /
+# kotlin-stdlib(1.7MB) / 模型解包 —— 全部由 build.sh 缺失时拉取, 不进库。
+pet/webview/android/third_party/
+
 # 壳的 CI 产物输出(本地用 --out dist-shell 复现 CI 时产生)
 /dist-shell/

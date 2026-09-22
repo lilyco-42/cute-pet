@@ -399,6 +399,155 @@ Java 侧新增 `PetBridge.Host` 方法 `agentSay(String)` / `agentPropose(JSONAr
 
 ---
 
+## 13. 语音输出（TTS，2026-09-22）
+
+让壳「不只弹字，还能出声」。**零新增原生依赖**。
+
+**接口契约**（与原生版 `PET_TTS_URL` 完全同款，服务端可互换）：
+```
+GET {base}/tts?text=<urlencoded>   ->   audio/wav
+```
+
+**Web 侧（`pet/webview/web/pet_bridge.js`）**
+- 新增 `window.cutePetTTS = { enabled, base, setBase(url), speak(text), stop() }`
+- `PetShell.agentSay(text)` 现在**同时驱动气泡 + 语音**（原来只渲染气泡）；
+  审批通过/拒绝后的本地回话也改走 `agentSay` → 一起出声。
+- 地址来源优先级：`?tts=<url>` 查询参数 > `localStorage['pet_tts_url']`。
+- **未配置 = 静默禁用**：不发任何请求、不报错。失败**只提示一次** `console.warn`
+  （遵循项目「高频 warn 会爆 console」的教训，见 §4）。
+- 播放用 `new Audio(URL.createObjectURL(blob))`；自动播放被拦时静默忽略。
+
+**原生侧（`OverlayService.java`）**
+- `PREF_TTS_URL = "tts_url"`（SharedPreferences 名 `pet`）→ `buildContentUrl()` 拼 `?tts=`。
+- 未配置时 `buildContentUrl()` 返回原 `CONTENT_URL`，**行为与以前完全一致**。
+- 设置方式：`adb shell` 写 SharedPreferences（或代码预置），无需重编译。
+
+**⚠️ 必须开明文流量**：`AndroidManifest.xml` 加 `android:usesCleartextTraffic="true"`。
+Android 9+ 默认禁明文，不开则 `http://` TTS **静默失败**（最难查的那种）。
+影响面受控：壳**不进 Release**（artifact-only），且语音**默认关闭**（未配 tts_url 零请求）。
+
+**本地 TTS 服务**：`tts-spike/tts_server.py`（ZipVoice int8 distill zh-en + vocos 声码器，CPU 实时；
+接口同上）。也可换成任意实现同契约的服务（含云端）。
+
+**验证**：复刻 `pet_bridge.js` 的 URL 构造打本地服务 → `200 / audio/wav / RIFF / 3.54s` ✅。
+**待办**：真机验证（需把 `tts_url` 指向真机可达的服务，例如局域网内 PC 的 `http://192.168.x.x:7860`）。
+
+### 13.1 壳内合成（WebView 内跑 TTS，手机单机可用）
+
+优先级：**① 壳内合成 → ② HTTP 服务**（`cutePetTTSLocal` 存在就先用它，失败/不可用再回落 `?tts=`）。
+
+**引擎**：`kokoro-js-zh`（`chalecao/kokoro-multilang-zh`）+ `Kokoro-82M-v1.0-ONNX`。
+- 模型 **Apache-2.0**，自带中文音色：`zf_xiaobei/zf_xiaoni/zf_xiaoxiao/zf_xiaoyi`（女）、
+  `zm_yunjian/zm_yunxi/zm_yunxia/zm_yunyang`（男）。
+- 🔴 **音色是 Kokoro 自带中文女声，不是丛雨**；要丛雨音色仍走 ②（ZipVoice 服务）。
+
+**随壳分发（`web/vendor/kokoro-zh/`，约 19MB，已进 build.sh）**：
+- `kokoro.web.js`（901KB，**自带 transformers.js，无外部 import**）
+- `espeak-ng.wasm`（18MB，**中文 G2P**；⚠️ 必须与 `kokoro.web.js` **同目录** ——
+  代码用 `new URL("espeak-ng.wasm", import.meta.url)` 定位）
+- ⚠️ 这两份**必须自托管**：npm 包 `kokoro-js-zh` 的发布**漏了** `espeak-ng.wasm` 和 `voices/`，
+  直接用 CDN 会 404。`kokoro.web.js` 取自包内，wasm 取自仓库
+  `chalecao/kokoro-multilang-zh/raw/main/dist/espeak-ng.wasm`。
+
+**首次运行**：模型(~82MB q8)/音色(~510KB) 从 HF 拉取并由浏览器缓存（Cache API）→ **之后可离线**。
+onnxruntime-web 的 wasm 默认走 jsDelivr CDN（如需全离线，设 `env.backends.onnx.wasm.wasmPaths` 指向本地）。
+
+**Web 侧 API**：`window.cutePetTTSLocal = { model, voice, ready(), load(), speak(text), stop() }`
+（`web/pet_tts_local.js`；`speak` 返回 `true`=已播放、`false`=未播放交给上层兜底）。
+
+**状态**：已接线 + `node --check` 通过 + vendored 与源包 **md5 逐字节一致**；
+⚠️ **浏览器/WebView 运行时未验**（本机无浏览器自动化），且 small ASR 对合成音色回读不可靠
+→ **需真机/浏览器实听确认可懂度**。
+
+#### 13.1.1 实测踩到的两个坑（必须照做，否则静默坏掉）
+
+1. **音色 `.bin` 必须放在壳内 `web/voices/`**。
+   加载器是 `fetch('./voices/<名>.bin').catch(() => fetch(HF))` —— **先取页面相对路径**，
+   只有 **fetch 抛异常**才回落 HF。而静态服务器/WebView 对缺失文件返回 **404 + HTML 正文**
+   （fetch **不抛错**）→ HTML 被当成浮点数据 → `RangeError: byte length of Float32Array should be a multiple of 4`。
+   → 已随壳打 8 个中文音色（`web/voices/`，4.1MB）；**注意清 `kokoro-voices` 缓存**（坏响应会被缓存）。
+2. **必须 `device:'wasm'`，不要用 WebGPU**。
+   实测 WebGPU EP 输出坏音频（`max_volume 0.0dB` 削顶 + `mean -32dB` 近静音，ASR 只出幻觉）；
+   wasm 正常（`max -4.3dB / mean -20.8dB`）。`pet_tts_local.js` 的 `pickDevice()` 已恒返回 `'wasm'`。
+   代价：wasm 较慢（实测 RTF≈1.8）。
+
+**已验证（Playwright + 真浏览器）**：模块加载 → 模型加载（voices=39, zh=8）→ 合成出 6.75s 音频。
+**质量现状**：ASR 显示「**后半句逐字全对、前半句糊**」（如「…今天过得开心吗？」完全正确）。
+→ **技术通路成立，但质量未达产品级**；提升需移植官方 `misaki[zh]` 的中文 G2P。
+
+#### 13.1.2 🔴 结论：本方案**不可用于产品**（根因＝音素集不对）
+
+用户实听确认「前面听不清」。对照实验定论：
+
+| 来源 | 「你好，我是你的桌宠。」的音素 |
+|---|---|
+| **官方 `misaki[zh]`** | `ni↓xau↓, wo↓ ʂɨ↘ ni↓ tɤ ꭧwo→ꭧʰʊ↓ŋ.`（声调箭头 + IPA） |
+| 本包的 espeak(cmn) | `n_i214_X_'Au214__\| j_'iA11__\| …`（下划线＋数字声调） |
+
+**两套符号集完全不同**，而模型 tokenizer（178 词）是按 misaki 那套训练的 → 前糊后准。
+
+**官方 Python 管线对照（`kokoro` + `misaki[zh]`，`repo_id=hexgrad/Kokoro-82M-v1.1-zh`）逐字全对**，
+证明**模型没问题，问题 100% 在社区的 espeak 音素化路线**。
+
+**⇒ 正确方向：`sherpa-onnx`**（C++；有 **Rust 绑定 `sherpa-rs`** 与**官方 Android SDK/AAR**）。
+它自带 `lexicon.txt` 做 G2P —— 我们早前用它跑 ZipVoice 时**中文 ASR 逐字全对**。
+壳虽是 WebView，但可从 **Java 层调 sherpa-onnx Android SDK** 实现原生端侧中文。
+本节 13.1 的浏览器方案保留作技术存档，**默认不要用于生产**。
+
+---
+
+## 14. 原生离线 TTS：sherpa-onnx 落地（2026-09-23）
+
+按 13.1.2 的结论落地：**Java 层集成 sherpa-onnx AAR，模型随 APK 资产分发，完全单机离线**。
+
+### 14.1 架构
+
+```
+WebView(pet_bridge.js ttsSpeak)
+  ① HTTP 服务(?tts=/PET_TTS_URL, 丛雨 ZipVoice 音色) —— 配置了才走, 失败自动回退
+  ② 壳内原生引擎 TtsEngine(sherpa-onnx VITS)  ←←← 新增, 单机兜底, 本节主角
+  ③ WebView 内合成(pet_tts_local.js)           —— 归档, 默认关闭(见 13.1.2)
+```
+
+- `TtsEngine.java`：包一层 `com.k2fsa.sherpa.onnx.OfflineTts`。
+  **模型直接从 APK assets 读**（`new OfflineTts(getAssets(), config)`），不拷 filesDir。
+  单 worker 线程串行「合成 → AudioTrack 播放」；`speak()` 新请求顶掉旧 pending 并
+  打断正在播的音频（`playGen` 代次计数）；引擎 init(~1-3s) 期间到来的 speak 排队等。
+- `PetBridge`：协议加 `tts.speak {text}` / `tts.stop`；`shellInfo` 加 `nativeTts:true` 能力位。
+- `OverlayService`：onCreate 建 `TtsEngine`（后台 init），onDestroy release；
+  说话人 id 走 SharedPreferences 键 `tts_native_sid`（默认 0，aishell3 共 174 人）。
+
+### 14.2 模型与构建（build.sh 3.5 节）
+
+| 项 | 值 |
+|---|---|
+| 运行时 | `sherpa-onnx-1.13.8.aar`（47MB；classes.jar 进 dex，arm64-v8a 4 个 .so 进 `lib/`） |
+| 模型 | `vits-icefall-zh-aishell3`（aishell3 多说话人中文，30MB） |
+| 进包文件 | 仅 `model.onnx / lexicon.txt / tokens.txt / date.fst / number.fst` |
+| **rule.far** | **180MB 的 jieba 大词典，绝不进包** —— 数字/日期读法用 `date.fst+number.fst` 已够（官方 README 同款） |
+| kotlin-stdlib | **必须一起 dex**（2.0.21，1.7MB）：sherpa 的 Java 层是 Kotlin 编译的，缺 stdlib = 运行时 `NoClassDefFoundError: kotlin.jvm.internal.Intrinsics`，**编译期无任何报错** |
+
+第三方输入全在 `pet/webview/android/third_party/cache/`（gitignored），build.sh 缺失时拉取。
+APK 体积：~25MB → **51MB**。
+
+### 14.3 顺手修掉的旧坑
+
+- build.sh 组装 assets 前不清理 → `cp -r vendor` 对已存在目标拷成 `vendor/vendor/`
+  嵌套，每次构建把 19MB 死重复制进包（本次 59MB→51MB 即由此而来）。现组装前 `rm -rf`。
+- voices/*.bin 的 fetch-if-missing 段是死代码（拉了从不进包），删除。
+
+### 14.4 验证状态与下一步
+
+- ✅ 本地 `build.sh --out dist-shell` 全链路通过（javac/d8/打包/签名）；
+  APK 结构核验：`lib/arm64-v8a/` 4 个 .so、`pet/tts/` 模型 5 件、dex 含 sherpa + kotlin 类。
+- ⏳ **真机出声验证待做**（AVD 撑不到悬浮窗，见 §6.2）：
+  `adb install -r dist-shell/cute-pet-shell.apk` → 启动悬浮窗 → 点桌宠触发 mock agent 台词 →
+  `adb logcat -s CutePetTts` 看 `init ok` / `generate` 耗时。
+- 第二步（已预留）：换 **ZipVoice int8 + 丛雨参考音** —— 1.13.8 已内置
+  `OfflineTtsZipVoiceModelConfig`；参考音走用户自备素材目录（合规，不进包）。
+
+---
+
 ## 10. 一句话总结
 
 > 走 wasm + WebView 能砍掉的是「逻辑/渲染层的多平台编译与适配」，
