@@ -82,6 +82,8 @@
   <!-- 顺序要求: canvas 必须在 ply_bundle.js 之前(它加载时就 querySelector("#glcanvas"));
        pet_bridge.js 更早, 让原生桥在内核起来前可用。 -->
   <script src="pet_bridge.js"></script>
+  <!-- 壳内中文 TTS（WebView 内合成，单机；vendor/kokoro-zh/ 随壳分发） -->
+  <script src="pet_tts_local.js"></script>
   <script src="ply_bundle.js"></script>
   <script>
     (async () => {

@@ -67,6 +67,15 @@ public class OverlayService extends Service implements PetBridge.Host {
     /** Web 内容层在 APK assets 下的目录: file:///android_asset/pet/index.html */
     private static final String CONTENT_URL = "file:///android_asset/pet/index.html";
 
+    /** TTS 服务基址的配置键(SharedPreferences "pet", 可选)。
+     *  如 http://192.168.1.10:7860(局域网本地 TTS) 或 http://127.0.0.1:7860。
+     *  空/未配置 = 静默禁用语音(不报错、不刷 console)。 */
+    public static final String PREF_TTS_URL = "tts_url";
+
+    /** 壳内离线 TTS 的说话人 id(SharedPreferences "pet" 键 "tts_native_sid", 可选)。
+     *  vits-icefall-zh-aishell3 有 174 个说话人, 0..173; 默认 0。 */
+    public static final String PREF_TTS_SID = "tts_native_sid";
+
     /** 网络导入预设: 已获柚子社授权、托管在 lain42.top 的丛雨素材包 */
     private static final String PRESET_MURASAME_URL =
             "https://lain42.top/pet/murasame/pet-asset-bundle.json";
@@ -77,6 +86,7 @@ public class OverlayService extends Service implements PetBridge.Host {
     private WebView webView;
     private WindowManager.LayoutParams params;
     private PetBridge bridge;
+    private TtsEngine tts;
     private final Handler main = new Handler(Looper.getMainLooper());
 
     /** 网络导入广播: adb 或通知按钮触发, 带 extra "url"(为空则用预设) */
@@ -102,6 +112,9 @@ public class OverlayService extends Service implements PetBridge.Host {
         startForegroundWithType();
         createWebView();
         setupOverlay();
+        // 离线 TTS: 构造即后台 init(加载模型 ~1-3s), speak() 提前到来会排队
+        int sid = getSharedPreferences("pet", MODE_PRIVATE).getInt(PREF_TTS_SID, 0);
+        tts = new TtsEngine(this, sid);
     }
 
     private void registerImportReceiver() {
@@ -155,6 +168,10 @@ public class OverlayService extends Service implements PetBridge.Host {
             } catch (Exception ignored) {
             }
         }
+        if (tts != null) {
+            tts.release();
+            tts = null;
+        }
         root = null;
         webView = null;
         super.onDestroy();
@@ -194,7 +211,17 @@ public class OverlayService extends Service implements PetBridge.Host {
         bridge = new PetBridge(this);
         webView.addJavascriptInterface(bridge, "PetBridge");
 
-        webView.loadUrl(CONTENT_URL);
+        webView.loadUrl(buildContentUrl());
+    }
+
+    /** 内容 URL: 附带可配置的 TTS 服务基址(?tts=...), 供 pet_bridge.js 的 cutePetTTS 使用。
+     *  未配置 TTS 时行为与以前完全一致(纯气泡, 无语音)。 */
+    private String buildContentUrl() {
+        String tts = getSharedPreferences("pet", MODE_PRIVATE).getString(PREF_TTS_URL, "");
+        if (tts == null || tts.isEmpty()) {
+            return CONTENT_URL;
+        }
+        return CONTENT_URL + "?tts=" + android.net.Uri.encode(tts);
     }
 
     // ---------------- 悬浮窗 ----------------
@@ -516,6 +543,22 @@ public class OverlayService extends Service implements PetBridge.Host {
         }
         final String u = url;
         evalJs("window.cutePetImportBundle(" + JSONObject.quote(u) + ")");
+    }
+
+    // ---------------- 壳内离线 TTS ----------------
+
+    @Override
+    public void ttsSpeak(String text) {
+        if (tts != null) {
+            tts.speak(text);
+        }
+    }
+
+    @Override
+    public void ttsStop() {
+        if (tts != null) {
+            tts.stop();
+        }
     }
 
     /** 动作对象 -> 中文描述(对齐 lilyco-approve 的 AgentOps.describe) */

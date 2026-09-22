@@ -298,7 +298,8 @@
       });
     } else {
       console.log("[mock agent] 用户" + verb + "了动作:", currentActions);
-      renderBubble(approved ? "好嘞～我这就去办！" : "明白，那就不动啦。");
+      // 走 agentSay 以同时出声(气泡 + 语音)
+      window.PetShell.agentSay(approved ? "好嘞～我这就去办！" : "明白，那就不动啦。");
     }
   }
 
@@ -314,10 +315,119 @@
     }
   }
 
+  // ---------------- 语音输出(本地/远程 TTS) ----------------
+  // 接口与 PET_TTS_URL 同款: GET {base}/tts?text=... -> audio/wav。
+  // 地址来源(优先级): ?tts=<url> 查询参数 > localStorage['pet_tts_url']。
+  // 未配置 = 静默禁用(不刷 console —— 见项目"每帧 warn 会爆 console"的教训)。
+  var ttsBase = "";
+  var ttsWarned = false;
+  var ttsAudio = null;
+  try {
+    var qm = location.search.match(/[?&]tts=([^&]+)/);
+    if (qm) {
+      ttsBase = decodeURIComponent(qm[1]);
+    } else {
+      ttsBase = localStorage.getItem("pet_tts_url") || "";
+    }
+  } catch (e) {}
+
+  function httpSpeak(text) {
+    if (!ttsBase) {
+      return false;
+    }
+    try {
+      var url = ttsBase.replace(/\/+$/, "") + "/tts?text=" + encodeURIComponent(text);
+      fetch(url)
+        .then(function (r) {
+          if (!r.ok) { throw new Error("HTTP " + r.status); }
+          return r.blob();
+        })
+        .then(function (blob) {
+          if (ttsAudio) { try { ttsAudio.pause(); } catch (e) {} }
+          var obj = URL.createObjectURL(blob);
+          var a = new Audio(obj);
+          a.onended = function () { URL.revokeObjectURL(obj); };
+          ttsAudio = a;
+          var p = a.play();
+          if (p && p.catch) { p.catch(function () {}); } // 自动播放被拦 -> 静默
+        })
+        .catch(function (e) {
+          // HTTP 服务不可用 -> 回退壳内离线引擎(单机兜底); 两者都没有才提示一次
+          if (!nativeTtsSpeak(text)) {
+            if (!ttsWarned) {
+              ttsWarned = true; // 只提示一次, 避免高频刷屏
+              console.warn("[tts] 合成失败(仅提示一次): " + e);
+            }
+          }
+        });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /** 壳内离线 TTS(sherpa-onnx, 模型在 APK assets): 走原生桥, 非阻塞。
+   *  返回 false = 不在壳里(浏览器), 调用方自行降级。 */
+  function nativeTtsSpeak(text) {
+    if (!hasNative) {
+      return false;
+    }
+    post({ method: "tts.speak", params: { text: text } });
+    return true;
+  }
+
+  // 语音优先级: ① HTTP 服务(PET_TTS_URL / ?tts=, 可给丛雨 ZipVoice 音色, 配置了才走)
+  //           → ② 壳内离线引擎(单机兜底, 模型在 APK 里; HTTP 挂了也回退到这里)
+  //           → ③ WebView 内合成(cutePetTTSLocal, 质量不达标默认关, 见 docs §13.1.2)
+  // 全都不可用 = 静默(只弹气泡, 不报错)。
+  function ttsSpeak(text) {
+    var t = (text == null ? "" : String(text)).trim();
+    if (!t) {
+      return;
+    }
+    if (ttsBase && httpSpeak(t)) {
+      return;
+    }
+    if (nativeTtsSpeak(t)) {
+      return;
+    }
+    // 壳内合成默认**关闭**(质量不达标, 见 docs §13.1.2), 需显式 setEnabled(true)/?tts_local=1
+    if (window.cutePetTTSLocal && typeof window.cutePetTTSLocal.enabled === "function"
+        && window.cutePetTTSLocal.enabled()) {
+      window.cutePetTTSLocal.speak(t).then(function (ok) {
+        if (!ok) { httpSpeak(t); }
+      }).catch(function () { httpSpeak(t); });
+    }
+  }
+
+  // 语音控制(原生可用 evalJs("cutePetTTS.setBase('http://...')") 配置)
+  window.cutePetTTS = {
+    enabled: function () { return !!ttsBase; },
+    base: function () { return ttsBase; },
+    setBase: function (u) {
+      ttsBase = u ? String(u) : "";
+      ttsWarned = false;
+      try { localStorage.setItem("pet_tts_url", ttsBase); } catch (e) {}
+      return ttsBase;
+    },
+    speak: ttsSpeak,
+    stop: function () {
+      if (hasNative) {
+        post({ method: "tts.stop", params: {} }); // 壳内离线引擎一起停
+      }
+      if (ttsAudio) { try { ttsAudio.pause(); } catch (e) {} ttsAudio = null; }
+    }
+  };
+
   // 暴露给原生桥(通过 evalJs 调用)与本地 mock agent
-  window.PetShell.agentSay = renderBubble;
+  // agentSay 同时驱动: 气泡(渲染) + 语音(TTS)
+  window.PetShell.agentSay = function (text) {
+    renderBubble(text);
+    ttsSpeak(text);
+  };
   window.PetShell.agentPropose = renderCard;
   window.PetShell.agentApprove = onAgentDecision;
+  window.PetShell.ttsSpeak = ttsSpeak;
 
   // JS 侧异常回传 logcat, 免得 adb 看不到 WebView 里的报错
   var origError = console.error;

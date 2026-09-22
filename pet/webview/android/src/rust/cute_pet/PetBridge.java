@@ -58,6 +58,14 @@ public final class PetBridge {
 
         /** 网络导入: 从 pet-asset-bundle.json 地址拉取素材并注入 wasm(url 为空则用预设) */
         void importBundle(String url);
+
+        // ---- 壳内离线 TTS(sherpa-onnx, 见 TtsEngine) ----
+
+        /** 说一句话(新请求顶掉旧的, 非阻塞; 引擎未就绪时排队) */
+        void ttsSpeak(String text);
+
+        /** 停止当前播放并清空待说队列 */
+        void ttsStop();
     }
 
     private static final String TAG = "PetBridge";
@@ -93,6 +101,7 @@ public final class PetBridge {
             o.put("passthroughSupported", true);
             o.put("assetFetch", true);
             o.put("capture", true); // M3: PixelCopy 截 WebView 自身画面 -> base64 推 JS
+            o.put("nativeTts", true); // 壳内离线 TTS 可用(引擎在后台 init, speak 会排队)
             return o.toString();
         } catch (Exception e) {
             return "{}";
@@ -168,6 +177,16 @@ public final class PetBridge {
 
                 case "log":
                     android.util.Log.i(TAG, "[" + p.optString("level", "info") + "] " + p.optString("msg"));
+                    break;
+
+                case "tts.speak":
+                    host.ttsSpeak(p.optString("text", ""));
+                    reply(id, null, null);
+                    break;
+
+                case "tts.stop":
+                    host.ttsStop();
+                    reply(id, null, null);
                     break;
 
                 default:
