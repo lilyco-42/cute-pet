@@ -71,12 +71,12 @@ pub struct Persona {
 ///   绝不把角色台词编进商业二进制。
 #[cfg(feature = "bundle-murasame")]
 fn default_persona_text() -> String {
-    include_str!("../assets/murasame_persona.txt").to_string()
+    include_str!("../../assets/murasame_persona.txt").to_string()
 }
 
 #[cfg(not(feature = "bundle-murasame"))]
 fn default_persona_text() -> String {
-    crate::run::load_asset("murasame_persona.txt")
+    crate::assets::load_asset("murasame_persona.txt")
         .ok()
         .and_then(|b| String::from_utf8(b).ok())
         .unwrap_or_default()

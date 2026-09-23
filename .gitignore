@@ -152,3 +152,21 @@ pet/webview/android/third_party/
 
 # 壳的 CI 产物输出(本地用 --out dist-shell 复现 CI 时产生)
 /dist-shell/
+pet/webview/android/dist-shell/
+
+# ─────────────── 本机试验/打包中间产物(仓库根) ───────────────
+# dist-assets 是本地角色素材中转目录 —— 含第三方版权素材, 绝不能入库;
+# 其余两个是本机复现 CI 打包时的中间物。
+/apk-out/
+/build-tmp/
+/dist-assets/
+
+# ─────────────── 角色音频防线(ogg 是 wav/mp3 之外的漏网之鱼) ───────────────
+# mur*.ogg = 柚子社角色语音, 入库即违反素材合规铁律;
+# greeting/ = 本机生成的语音目录。srt 字幕仍入库(见上方 TTS 段说明)。
+# 加入前自查: git ls-files pet/assets/voice 只应有 .srt。
+pet/assets/voice/*.ogg
+pet/assets/voice/greeting/
+
+# 旧 kokoro TTS 实验拉取的 voice bin(4MB, 本机可再生)
+pet/webview/web/voices/

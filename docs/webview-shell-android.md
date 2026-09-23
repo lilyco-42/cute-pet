@@ -424,7 +424,7 @@ GET {base}/tts?text=<urlencoded>   ->   audio/wav
 
 **⚠️ 必须开明文流量**：`AndroidManifest.xml` 加 `android:usesCleartextTraffic="true"`。
 Android 9+ 默认禁明文，不开则 `http://` TTS **静默失败**（最难查的那种）。
-影响面受控：壳**不进 Release**（artifact-only），且语音**默认关闭**（未配 tts_url 零请求）。
+影响面受控：壳在合规闸门（产物含 `*murasame*` 即拒）后随 push main 自动挂载 GitHub Release，且语音**默认关闭**（未配 tts_url 零请求）。
 
 **本地 TTS 服务**：`tts-spike/tts_server.py`（ZipVoice int8 distill zh-en + vocos 声码器，CPU 实时；
 接口同上）。也可换成任意实现同契约的服务（含云端）。
