@@ -6,6 +6,11 @@ name: Android WebView Shell
 #
 # 产物: cute-pet-shell.apk(CI 产物; push main 时在合规闸门后自动挂载到 GitHub Release)。
 # 合规: 默认构建 = 商业版(不含第三方版权角色素材), 闸门见下。
+#
+# 全量渠道(2026-09-24): workflow_dispatch + with_character_assets=true 时构建**含素材**
+# 的自测 APK(语音从非商用 prerelease 的 voice-assets.zip 取, 签名经 GitHub Secret 固化),
+# 构建后自动挂回 v0.3.5-full-demo prerelease(--clobber)。该渠道已标注非商用/禁止再分发;
+# 商业线(push main → vX.Y.Z, 无素材)与它完全隔离。
 
 on:
   push:
@@ -45,6 +50,32 @@ jobs:
         with:
           workspaces: pet
 
+      - name: 全量模式——下载语音素材包(先于 wasm 构建, rust-embed 编译期嵌入)
+        # voice/*.ogg + greeting/ 被 .gitignore 刻意挡在仓库外(版权纪律: 仓库/CI
+        # 天然无语音)。CI 全量构建从非商用 prerelease 渠道取素材包 —— 与 APK 本体
+        # 同一渠道、同一版权暴露面(该 Release 已标注非商用/禁止再分发)。
+        # ⚠️ 顺序关键: 必须在 cargo build 之前就位, 否则 wasm 里没有语音。
+        if: inputs.with_character_assets == true
+        run: |
+          set -e
+          URL="https://github.com/${{ github.repository }}/releases/download/v0.3.5-full-demo/voice-assets.zip"
+          curl -fsSL "$URL" -o /tmp/voice-assets.zip
+          unzip -q /tmp/voice-assets.zip -d pet/assets/
+          echo "语音素材: $(find pet/assets/voice -type f | wc -l) 个文件"
+          [ -f pet/assets/voice/mur001_002.ogg ] || { echo "::error::语音包内容异常"; exit 1; }
+
+      - name: 全量模式——解码固定签名 keystore(GitHub Secret, 不入 git)
+        # 与本机/历史构建同签名 ⇒ 用户覆盖安装无需卸载重装。
+        # keystore 本体守 ".gitignore: 含密钥绝不能入库" 纪律, 经 Secret 传递。
+        if: inputs.with_character_assets == true
+        env:
+          SHELL_KEYSTORE_B64: ${{ secrets.SHELL_KEYSTORE_B64 }}
+        run: |
+          set -e
+          [ -n "$SHELL_KEYSTORE_B64" ] || { echo "::error::secret SHELL_KEYSTORE_B64 未设置"; exit 1; }
+          echo "$SHELL_KEYSTORE_B64" | base64 -d > /tmp/shell-debug.keystore
+          echo "CUTE_PET_KEYSTORE=/tmp/shell-debug.keystore" >> "$GITHUB_ENV"
+
       - name: Build wasm kernel
         working-directory: pet
         run: |
@@ -77,6 +108,10 @@ jobs:
       - name: Build APK
         run: bash pet/webview/android/build.sh --out dist-shell
 
+      - name: 全量模式——产物定名
+        if: inputs.with_character_assets == true
+        run: cp dist-shell/cute-pet-shell.apk dist-shell/cute-pet-full-demo.apk
+
       - name: 体积与内容层(验证清单第 7 项需要数据)
         run: |
           echo "APK: $(du -h dist-shell/cute-pet-shell.apk | cut -f1)"
@@ -97,9 +132,43 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cute-pet-shell-apk
-          path: dist-shell/cute-pet-shell.apk
+          name: ${{ inputs.with_character_assets == true && 'cute-pet-full-demo-apk' || 'cute-pet-shell-apk' }}
+          path: ${{ inputs.with_character_assets == true && 'dist-shell/cute-pet-full-demo.apk' || 'dist-shell/cute-pet-shell.apk' }}
           if-no-files-found: error
+
+  # ====== 全量(自测)发布: workflow_dispatch + with_character_assets 时,
+  # ====== 把 CI 构建的全量 APK 挂到非商用 prerelease(v0.3.5-full-demo, --clobber)。
+  # ====== 该渠道已标注版权归属/非商业/禁止再分发 —— 详见该 Release 说明。
+  # ====== 商业线(push main → vX.Y.Z Release, 无素材)完全不受此影响。
+  release-full-demo:
+    name: Attach full demo APK to non-commercial prerelease
+    needs: build-apk
+    if: github.event_name == 'workflow_dispatch' && inputs.with_character_assets == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: cute-pet-full-demo-apk
+          path: .
+
+      - name: 产物校验(上 Release 前复查, --selftest 跳过素材闸门)
+        run: bash pet/webview/android/verify_apk.sh cute-pet-full-demo.apk --selftest
+
+      - name: 挂载到 v0.3.5-full-demo(覆盖旧包)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          gh release view v0.3.5-full-demo >/dev/null 2>&1 || {
+            echo "::error::prerelease v0.3.5-full-demo 不存在(需先手动创建, 内含版权标注与 voice-assets.zip)"
+            exit 1
+          }
+          gh release upload v0.3.5-full-demo cute-pet-full-demo.apk --clobber
+          echo "✅ 全量 APK(CI 构建, 固定签名)已更新到 v0.3.5-full-demo"
 
   # ============ 发布: push main 时把壳 APK 挂到 GitHub Release ============
   # tag 与 Build All workflow 同源(读 pet/Cargo.toml 的 version): 那边全部平台
