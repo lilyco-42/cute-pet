@@ -106,18 +106,17 @@ echo "platform  : $(basename "$PLAT")"
 
 # ---------------- 2. 组装 Web 内容层 ----------------
 
-# 壳内中文 TTS 的大文件(espeak-ng.wasm 18MB)按仓库惯例**不进 git**, 缺失则在此拉取。
-# (voices/*.bin 不再拉取: 那是 wasm TTS 的依赖, 已归档为默认关闭 —— 壳内离线语音
-#  由原生 sherpa-onnx 接管, 见下方 3.5 节。)
-web_src="$repo_root/pet/webview/web"
-zk="$web_src/vendor/kokoro-zh"
-mkdir -p "$zk" "$web_src/voices"
-if [ ! -f "$zk/espeak-ng.wasm" ]; then
-  echo "拉取 espeak-ng.wasm (中文 G2P, 18MB) ..."
-  curl -fsSL -o "$zk/espeak-ng.wasm" \
-    "https://github.com/chalecao/kokoro-multilang-zh/raw/main/dist/espeak-ng.wasm" \
-    || { echo "espeak-ng.wasm 拉取失败"; exit 1; }
-fi
+# ⚠️ 壳内**不再分发** WebView 内合成的 web TTS 路由(kokoro-zh)。
+# 下线依据(用户实听确认 + 本次复核):
+#   1. 该社区包用 espeak 音素集, 与模型期望的 misaki[zh] 不一致 —— 合成「后半句准、
+#      前半句糊」且带明显英文口音(pet_tts_local.js 头部有原始记录);
+#   2. 它还要联网拉 onnx-community/Kokoro-82M 模型, voices/*.bin 得用户手放 —— 与
+#      「单机离线可用」相悖;
+#   3. 补齐它需再进包 ~157MB(Kokoro v1.1 multi-lang INT8), 性价比为负。
+# 因此 vendor/(18MB espeak-ng.wasm + kokoro.web.js) 不再拷进 APK, pet_tts_local.js
+# 也不再随包分发(脚本保留在仓库作归档)。壳内离线中文语音由原生 sherpa-onnx 独家承担,
+# 见下方 3.5 节。**别把这两段加回来**: verify_apk.sh 有「不得含 vendor/ 与
+# pet_tts_local.js」的断言挡着。
 
 # 组装前清掉旧产物: cp -r 对已存在的目标目录会拷成嵌套(vendor/vendor/...),
 # 必须从干净状态组装, 保证可重复构建。
@@ -127,12 +126,9 @@ assets="$out_dir/assets/pet"
 mkdir -p "$assets"
 cp "$repo_root/pet/webview/web/index.html"     "$assets/index.html"
 cp "$repo_root/pet/webview/web/pet_bridge.js"  "$assets/pet_bridge.js"
-# 壳内中文 TTS(WebView 内合成): 引擎脚本 + 其依赖(自带 transformers.js 的 kokoro.web.js
-# 与中文 G2P 的 espeak-ng.wasm；wasm 必须与 kokoro.web.js 同目录)
-cp "$repo_root/pet/webview/web/pet_tts_local.js" "$assets/pet_tts_local.js"
-if [ -d "$repo_root/pet/webview/web/vendor" ]; then
-  cp -r "$repo_root/pet/webview/web/vendor" "$assets/vendor"
-fi
+# 内容层到此为止: index.html + pet_bridge.js + app.wasm(+ ply_bundle.js)。
+# **不含** pet_tts_local.js 与 vendor/ —— 见上节下线说明; 壳内语音走原生
+# sherpa-onnx, 不经 WebView。
 cp "$repo_root/pages/ply_bundle.js"            "$assets/ply_bundle.js"
 
 if [ "$skip_wasm" -eq 0 ]; then

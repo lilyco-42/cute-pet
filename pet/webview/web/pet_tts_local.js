@@ -1,5 +1,11 @@
 // 壳内中文 TTS 引擎（WebView 内合成，无需外部服务）—— kokoro-js-zh + espeak-ng(中文 G2P)
 //
+// 🚫 **已下线(2026-09-23): 本文件不再随壳分发, 保留在仓库仅作归档。**
+//   build.sh 不再拷贝它, verify_apk.sh 有断言禁止它进包。壳内离线中文语音
+//   由原生 sherpa-onnx 承担(见 docs/webview-shell-android.md §14)。
+//   如需复活本条路线: 需同时补回 vendor/(espeak-ng.wasm + kokoro.web.js)、
+//   voices/*.bin, 并解决下面的音素集问题。
+//
 // ⚠️⚠️ 质量警告：本引擎**默认关闭**，不建议用于生产 ⚠️⚠️
 //   实测该社区包的音素集（espeak）与模型期望的 misaki[zh] 不一致 →
 //   合成是「**后半句准、前半句糊**」，且前半句带明显**英文口音**（用户实听确认）。
