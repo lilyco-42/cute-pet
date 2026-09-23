@@ -60,7 +60,7 @@ jobs:
           set -e
           URL="https://github.com/${{ github.repository }}/releases/download/v0.3.5-full-demo/voice-assets.zip"
           curl -fsSL "$URL" -o /tmp/voice-assets.zip
-          unzip -q /tmp/voice-assets.zip -d pet/assets/
+          unzip -qo /tmp/voice-assets.zip -d pet/assets/   # -o: git 里有同名 .srt(gitignore 只挡 ogg), 交互询问会杀死 CI
           echo "语音素材: $(find pet/assets/voice -type f | wc -l) 个文件"
           [ -f pet/assets/voice/mur001_002.ogg ] || { echo "::error::语音包内容异常"; exit 1; }
 
