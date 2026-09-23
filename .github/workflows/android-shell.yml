@@ -4,7 +4,7 @@ name: Android WebView Shell
 # zipalign + apksigner)构建**纯 framework** 的 WebView 悬浮窗壳。
 # 不依赖 Gradle / androidx / 任何第三方库, 因此无需联网拉依赖。
 #
-# 产物: cute-pet-shell.apk(仅 CI 产物, **不进 Release**)。
+# 产物: cute-pet-shell.apk(CI 产物; push main 时在合规闸门后自动挂载到 GitHub Release)。
 # 合规: 默认构建 = 商业版(不含第三方版权角色素材), 闸门见下。
 
 on:
@@ -100,3 +100,54 @@ jobs:
           name: cute-pet-shell-apk
           path: dist-shell/cute-pet-shell.apk
           if-no-files-found: error
+
+  # ============ 发布: push main 时把壳 APK 挂到 GitHub Release ============
+  # tag 与 Build All workflow 同源(读 pet/Cargo.toml 的 version): 那边全部平台
+  # 构建通过后 `gh release create v$VER`; 本 job 等它出现再 `gh release upload`。
+  # 自测模式(with_character_assets)只存在于 workflow_dispatch, 永远到不了这里。
+  release-apk:
+    name: Attach shell APK to GitHub Release
+    needs: build-apk
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: cute-pet-shell-apk
+          path: .
+
+      - name: 合规闸门(上 Release 前复查, 与 build-all release job 同级防线)
+        run: |
+          hits="$(unzip -Z1 cute-pet-shell.apk | grep -i murasame || true)"
+          if [ -n "$hits" ]; then
+            echo "::error::APK 含第三方版权角色素材(柚子社《千恋＊万花》), 禁止发布"
+            echo "$hits"; exit 1
+          fi
+          echo "✅ APK 无角色素材(商业构建)"
+
+      - name: 等待 Build All 创建 Release 后挂载 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          VERSION=$(grep -m1 '^version' pet/Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          TAG="v${VERSION}"
+          echo "目标 Release: $TAG"
+          found=""
+          # Build All 的 release job 要等全部平台构建通过才打 tag, 常规需 20-40 分钟;
+          # 轮询上限 60 分钟, 超时即失败(静默跳过会变成"忘了挂 APK"类事故)。
+          for i in $(seq 1 120); do
+            if gh release view "$TAG" >/dev/null 2>&1; then found=1; break; fi
+            echo "[$i/120] Release $TAG 尚未创建, 30s 后重试..."
+            sleep 30
+          done
+          if [ -z "$found" ]; then
+            echo "::error::60 分钟内未出现 Release $TAG —— Build All 未打 tag(构建失败或版本号已发布), APK 无法挂载"
+            exit 1
+          fi
+          gh release upload "$TAG" cute-pet-shell.apk --clobber
+          echo "✅ cute-pet-shell.apk 已挂载到 $TAG"

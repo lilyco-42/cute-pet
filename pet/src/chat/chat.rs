@@ -76,7 +76,7 @@ fn default_persona_text() -> String {
 
 #[cfg(not(feature = "bundle-murasame"))]
 fn default_persona_text() -> String {
-    crate::run::load_asset("murasame_persona.txt")
+    crate::assets::load_asset("murasame_persona.txt")
         .ok()
         .and_then(|b| String::from_utf8(b).ok())
         .unwrap_or_default()
