@@ -249,8 +249,18 @@ else
   cp "$build/app.unaligned.apk" "$build/app.aligned.apk"
 fi
 
+# 签名 keystore 来源(按优先级):
+#   1. CUTE_PET_KEYSTORE 环境变量指向的已有 keystore —— CI 走这条: workflow 先把
+#      secret(SHELL_KEYSTORE_B64)解码成文件传入, 让本机/CI/历次构建**同签名**,
+#      用户覆盖安装无需卸载。密钥本体经 GitHub Secret 传递、不入 git,
+#      守住 ".gitignore: keystore 含密钥绝不能入库" 的纪律。
+#   2. <out_dir>/debug.keystore 已存在则复用(现状行为; 同一 out_dir 内同签名)。
+#   3. 都没有: 现场生成 debug 签名(现状行为)。
 ks="$out_dir/debug.keystore"
-if [ ! -f "$ks" ]; then
+if [ -n "${CUTE_PET_KEYSTORE:-}" ] && [ -f "$CUTE_PET_KEYSTORE" ]; then
+  cp "$CUTE_PET_KEYSTORE" "$ks"
+  echo "签名      : 固定 keystore(CUTE_PET_KEYSTORE)"
+elif [ ! -f "$ks" ]; then
   echo "生成调试签名 ..."
   # keytool 也是 Java 程序: 给 POSIX 路径会在 C: 盘根下建出 \c\Users\... 这种怪目录
   keytool -genkeypair -v -keystore "$(winpath "$ks")" -storepass android -keypass android \
