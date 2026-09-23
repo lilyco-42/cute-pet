@@ -82,8 +82,9 @@
   <!-- 顺序要求: canvas 必须在 ply_bundle.js 之前(它加载时就 querySelector("#glcanvas"));
        pet_bridge.js 更早, 让原生桥在内核起来前可用。 -->
   <script src="pet_bridge.js"></script>
-  <!-- 壳内中文 TTS（WebView 内合成，单机；vendor/kokoro-zh/ 随壳分发） -->
-  <script src="pet_tts_local.js"></script>
+  <!-- 壳内 web TTS(pet_tts_local.js / vendor/kokoro-zh)已于 2026-09-23 下线:
+       音素集不匹配导致「前半句糊 + 英文口音」, 且需联网拉模型。
+       壳内离线语音改由原生 sherpa-onnx 独家承担(见 docs §13.1.2 / §14)。 -->
   <script src="ply_bundle.js"></script>
   <script>
     (async () => {

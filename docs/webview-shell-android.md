@@ -478,6 +478,12 @@ onnxruntime-web 的 wasm 默认走 jsDelivr CDN（如需全离线，设 `env.bac
 
 #### 13.1.2 🔴 结论：本方案**不可用于产品**（根因＝音素集不对）
 
+> **已下线（2026-09-23）**：`pet_tts_local.js` 与 `vendor/kokoro-zh/` 已**不再随壳分发**
+> （`build.sh` 不再拷贝，`verify_apk.sh` 有断言禁止回流）。除了下面这条音素集问题，
+> 还查到它**本质上要联网**：模型（~82MB q8）与音色从 HF 拉取、onnxruntime-web 的 wasm
+> 默认走 jsDelivr CDN —— 与「单机离线可用」直接冲突。壳内离线中文语音由原生
+> sherpa-onnx 独家承担（§14）。脚本保留在仓库作归档。
+
 用户实听确认「前面听不清」。对照实验定论：
 
 | 来源 | 「你好，我是你的桌宠。」的音素 |
@@ -507,7 +513,7 @@ onnxruntime-web 的 wasm 默认走 jsDelivr CDN（如需全离线，设 `env.bac
 WebView(pet_bridge.js ttsSpeak)
   ① HTTP 服务(?tts=/PET_TTS_URL, 丛雨 ZipVoice 音色) —— 配置了才走, 失败自动回退
   ② 壳内原生引擎 TtsEngine(sherpa-onnx VITS)  ←←← 新增, 单机兜底, 本节主角
-  ③ WebView 内合成(pet_tts_local.js)           —— 归档, 默认关闭(见 13.1.2)
+  ③ WebView 内合成(pet_tts_local.js)           —— **已下线**(见 13.1.2): 不再进包
 ```
 
 - `TtsEngine.java`：包一层 `com.k2fsa.sherpa.onnx.OfflineTts`。
