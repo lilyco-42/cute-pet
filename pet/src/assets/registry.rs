@@ -16,7 +16,7 @@ pub(crate) const SCALE: f32 = 0.6;
 #[cfg(not(any(target_os = "android", target_env = "ohos")))]
 pub(crate) const SCALE: f32 = 1.0 / 3.0;
 
-/// 跨平台资�? 编译期嵌入二进制(rust-embed), 所有平台统一, 无运行时路径问题�?
+/// 跨平台资产: 编译期嵌入二进制(rust-embed), 所有平台统一, 无运行时路径问题。
 /// 第三方版权角色素材(丛雨/むらさめ)的路径前缀。
 /// 版权归柚子社《千恋＊万花》、不归我方 —— 商业构建(`--no-default-features`,
 /// 无 bundle-murasame)不编入二进制, 运行时改从用户素材目录加载。

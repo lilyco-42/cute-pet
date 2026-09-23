@@ -80,20 +80,15 @@ jobs:
           echo "APK 内文件树:"
           unzip -Z1 dist-shell/cute-pet-shell.apk | sed 's/^/  /'
 
-      - name: 合规闸门 —— 产物不得含第三方版权角色素材
+      - name: 产物校验(结构 / 依赖 / 模型 / 体积 / 合规)
+        # 断言全部固化在 verify_apk.sh 里, 本地与 CI 同一套(此前是 inline grep,
+        # 容易和本地手工核验漂移)。脚本本身也做反向验证: 抠掉模型文件必须 exit 1。
         run: |
           if [ "${{ inputs.with_character_assets }}" = "true" ]; then
-            echo "::warning::自测模式, 跳过素材闸门(该产物禁止发布)"
-            exit 0
+            bash pet/webview/android/verify_apk.sh dist-shell/cute-pet-shell.apk --selftest
+          else
+            bash pet/webview/android/verify_apk.sh dist-shell/cute-pet-shell.apk
           fi
-          hits="$(unzip -Z1 dist-shell/cute-pet-shell.apk | grep -i murasame || true)"
-          hits2="$(find dist-shell/assets -iname '*murasame*' 2>/dev/null || true)"
-          if [ -n "$hits$hits2" ]; then
-            echo "::error::壳产物含第三方版权角色素材(柚子社《千恋＊万花》), 禁止发布"
-            echo "$hits"; echo "$hits2"
-            exit 1
-          fi
-          echo "✅ 产物无角色素材(商业构建)"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -120,14 +115,9 @@ jobs:
           name: cute-pet-shell-apk
           path: .
 
-      - name: 合规闸门(上 Release 前复查, 与 build-all release job 同级防线)
-        run: |
-          hits="$(unzip -Z1 cute-pet-shell.apk | grep -i murasame || true)"
-          if [ -n "$hits" ]; then
-            echo "::error::APK 含第三方版权角色素材(柚子社《千恋＊万花》), 禁止发布"
-            echo "$hits"; exit 1
-          fi
-          echo "✅ APK 无角色素材(商业构建)"
+      - name: 产物校验(上 Release 前复查, 与 build-apk 同级防线)
+        # 复查的是**即将上传的那个 artifact**(而不是构建目录), 与 build-apk 用同一脚本。
+        run: bash pet/webview/android/verify_apk.sh cute-pet-shell.apk
 
       - name: 等待 Build All 创建 Release 后挂载 APK
         env:
