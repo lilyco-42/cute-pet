@@ -67,8 +67,12 @@ def main():
     for r in female[:20]:
         print(f"  sid={r['sid']:3d}  F0={r['f0']:.0f}Hz  时长={r['sec']:.2f}s")
 
-    # 推荐先听: 音高落在 180-250Hz(常见年轻女声)区间, 按时长过滤掉异常短的
-    rec = [r for r in female if 180 <= r["f0"] <= 250]
+    # 推荐先听: 取音高最接近 TARGET_F0 的一小批 —— 180-250Hz 这个宽带里有一百多个,
+    # 全列出来等于没筛。定 16 个才是一轮能听完的量。
+    TARGET_F0 = 205.0   # 丛雨气质参考: 年轻女声, 略偏高
+    band = [r for r in female if 180 <= r["f0"] <= 250]
+    band.sort(key=lambda r: abs(r["f0"] - TARGET_F0))
+    rec = band[:16]
     def card(r):
         return (f'<div class="c"><div class="n">sid {r["sid"]:03d}'
                 f'<span>{r["f0"]:.0f}Hz</span></div>'
@@ -110,7 +114,7 @@ def main():
 <audio controls preload="none" src="all-sids.wav" style="width:100%;margin-top:8px"></audio>
 <p style="margin:8px 0 0">每个音色先说编号再说台词，听到喜欢的记下编号即可。</p></div>
 
-<h2>② 程序初筛：女声区 + 音高 180–250Hz（推荐先听这 {len(rec)} 个）</h2>
+<h2>② 程序初筛：女声区 + 音高 180–250Hz（按接近 205Hz 排序，先听这 {len(rec)} 个）</h2>
 <div class="grid">
 {chr(10).join(card(r) for r in rec)}
 </div>
