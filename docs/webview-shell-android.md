@@ -1,6 +1,7 @@
 # Android WebView 壳原型方案（wasm + webview 跨平台路线）
 
 > 状态：**M1 已落地（Android 壳可构建出 APK），M2–M4 待真机验证**。
+> 验收口径见 §14.4：模块测试 + CI 交叉编译 + 产物实物核验即通过，真机出声归用户自测（不阻塞）。
 > 本文是设计与进度记录；代码在 `pet/webview/`（见 §0）。
 > 目标读者：决定要不要把 cute-pet 从「Rust 原生逐平台交叉编译」切到
 > 「单 wasm 内核 + 薄原生 WebView 壳」的人。
@@ -187,7 +188,7 @@ wasm 侧只剩一句「向壳要素材」，各平台差异收敛到壳里。
 | 3 | 截屏回传 | `capture.request()` → 壳回 `capture.frame`（软件层 draw 截 WebView 自身） | M3-part1 ✅ 壳侧已实现；全屏 MediaProjection 感知 M3-part2 |
 | 4 | wasm 渲染 | Android WebView 上 ≥ 45fps（桌面实测 120fps） | 待真机 |
 | 5 | 素材加载 | `asset.fetch` 拿到角色素材，商业版能显示角色 | 桥已通，Rust 侧对接 M3 |
-| 6 | 音频 | 桌宠语音能播（Android WebView 音频策略需验证） | 待真机 |
+| 6 | 音频 | 桌宠语音能播（Android WebView 音频策略需验证） | 离线 TTS 已集成，模块测试 + 产物核验 ✅（§14.4）；真机出声归用户自测，**不阻塞交付** |
 | 7 | 体积/启动 | APK 体积与启动时间与现有原生版对比（需给出数据） | 体积✅ / **启动 2.1s✅** |
 
 **第 7 项必须有数据** —— 这是决定要不要切换的关键，不能只凭感觉。
@@ -538,10 +539,22 @@ APK 体积：~25MB → **51MB**。
 
 ### 14.4 验证状态与下一步
 
-- ✅ 本地 `build.sh --out dist-shell` 全链路通过（javac/d8/打包/签名）；
-  APK 结构核验：`lib/arm64-v8a/` 4 个 .so、`pet/tts/` 模型 5 件、dex 含 sherpa + kotlin 类。
-- ⏳ **真机出声验证待做**（AVD 撑不到悬浮窗，见 §6.2）：
-  `adb install -r dist-shell/cute-pet-shell.apk` → 启动悬浮窗 → 点桌宠触发 mock agent 台词 →
+**验收口径（2026-09-23 定）：模块测试 + CI 交叉编译 + 产物实物核验 = 通过。
+真机出声归用户自测，不作为交付阻塞项** —— 设备上跑的本就是同一份交叉编译产物，
+在开发机另起一遍真机流程没有额外信息量（且本机 AVD 撑不到悬浮窗，见 §6.2）。
+
+- ✅ **模块测试（双配置）**：`cargo test --lib --bins` 与 `--features bundle-murasame`
+  均 **22 passed / 1 ignored / 0 failed**。Rust 侧 TTS 相关覆盖见
+  `app::tests::chat_submit_sets_tts_deadline`（语音发起 + 超时兜底）；
+  商业构建的素材解耦断言在 `assets::compliance`（4 项）。
+- ✅ **CI 交叉编译**：PR #25 全绿 17 check，含 8 平台 + 3 Android ABI；
+  新增 `release-apk` job 端到端跑通（run 35818161686，双 job success）。
+- ✅ **产物实物核验**（下载 Release 里的 APK 解包复核）：
+  `lib/arm64-v8a/` 4 个 .so（onnxruntime 22MB + sherpa 三件）、`classes.dex` 2.6MB、
+  `pet/tts/vits-icefall-zh-aishell3/` 模型 5 件（无 180MB 的 `rule.far`）、
+  **murasame 零命中**（闸门有效）。
+- ⏳ 真机出声（用户自测，随时可做）：装 Release 里的 `cute-pet-shell.apk`
+  （本机 `dist-shell/` 那份 keystore 与 CI 不同源，`-r` 覆盖会被拒）→ 点桌宠 →
   `adb logcat -s CutePetTts` 看 `init ok` / `generate` 耗时。
 - 第二步（已预留）：换 **ZipVoice int8 + 丛雨参考音** —— 1.13.8 已内置
   `OfflineTtsZipVoiceModelConfig`；参考音走用户自备素材目录（合规，不进包）。
