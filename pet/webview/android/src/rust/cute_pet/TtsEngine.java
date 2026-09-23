@@ -48,7 +48,7 @@ public final class TtsEngine {
     private static final String MODEL_DIR = "pet/tts/vits-icefall-zh-aishell3";
 
     private final Context ctx;
-    private final int defaultSid;
+    private volatile int defaultSid; // 运行时可改: 见 setSid()(音色试听不必重建 APK)
 
     private final Thread worker;
     private final Object lock = new Object();
@@ -86,6 +86,14 @@ public final class TtsEngine {
     public void stop() {
         pending.set(null);
         playGen.incrementAndGet();
+    }
+
+    /**
+     * 运行时切换说话人(音色试听用)。下一次合成生效, **不必重建 APK** ——
+     * 由 OverlayService 在每次 speak 前按「素材目录文件 > SharedPreferences」解析后调用。
+     */
+    public void setSid(int sid) {
+        this.defaultSid = sid;
     }
 
     /** 服务销毁: 停播放、停线程。native 合成中途无法打断, worker 会在当次结束后退出。 */
