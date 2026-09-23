@@ -16,6 +16,8 @@
     #loading {
       position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
       font-size: 15px; opacity: .85; transition: opacity .4s ease;
+      /* 失败时这里会显示较长的诊断文本(URL/状态码/响应片段), 故限宽换行而非溢出 */
+      padding: 0 24px; max-width: 680px; margin: 0 auto; text-align: center; line-height: 1.7;
     }
     #hint {
       position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
@@ -41,12 +43,67 @@
        bundle 在加载时就会 querySelector("#glcanvas"), 所以 canvas 必须在它之前。 -->
   <script src="ply_bundle.js"></script>
   <script>
+    // 取 app.wasm, 并做"状态码 + 内容"双重校验。
+    //
+    // ⚠️ 为什么必须自己查状态码: fetch 对 4xx/5xx **不会 reject**, 它会把错误页的
+    // 正文原样当二进制交出来。于是 HTTP 403(正文就 4 个字节 "Forbidden") 会被喂进
+    // WebAssembly.compile, 报出 "expected magic word 00 61 73 6d, found 46 6f 72 62"
+    // —— 天书一样, 完全看不出其实是"资源没取到"。
+    // 实测踩到过: 用户在 CDN 边缘缓存/代理限流的瞬时 403 下必现, 且刷新也不一定好。
+    //
+    // 因此: ① 查 r.ok, 把状态码 + 响应片段报出来; ② 校验 wasm magic word;
+    //       ③ 对 403/408/425/429/5xx 退避重试, 重试时带 _retry 参数 + cache:"reload"
+    //          以绕开可能已被缓存的坏响应。404 这类确定性错误直接放弃, 不做无谓重试。
+    function _hex4(buf) {
+      return Array.prototype.map.call(buf.slice(0, 4), function (b) {
+        return b.toString(16).padStart(2, "0");
+      }).join(" ");
+    }
+    async function fetchWasm() {
+      // file:// 下浏览器禁止读同目录文件, 直接给出可操作的提示而不是让人猜
+      if (location.protocol === "file:") {
+        throw new Error("页面以 file:// 打开, 浏览器禁止读取同目录的 app.wasm。" +
+          "请用 HTTP 打开, 例如在本目录执行 python -m http.server 后访问 127.0.0.1:8000。");
+      }
+      const base = new URL("app.wasm", location.href);
+      const RETRYABLE = [403, 408, 425, 429];
+      let detail = "未知原因";
+      for (let i = 0; i < 3; i++) {
+        if (i > 0) await new Promise(function (r) { setTimeout(r, 500 * Math.pow(2, i - 1)); });
+        const u = new URL(base);
+        if (i > 0) u.searchParams.set("_retry", String(Date.now()));
+        let fatal = false;
+        try {
+          const r = await fetch(u, { cache: i > 0 ? "reload" : "default" });
+          if (r.ok) {
+            const buf = new Uint8Array(await r.arrayBuffer());
+            if (buf.length >= 4 && buf[0] === 0x00 && buf[1] === 0x61 &&
+                buf[2] === 0x73 && buf[3] === 0x6d) {
+              return buf;      // \0asm —— 真 wasm
+            }
+            detail = "app.wasm 内容不是 WebAssembly（前 4 字节 " + _hex4(buf) +
+              ", 应为 00 61 73 6d）。服务器返回了别的页面, 多半是部署未完成或缓存了旧响应。";
+            // 内容不对也可能是坏缓存, 继续重试
+          } else {
+            let body = "";
+            try { body = (await r.text()).slice(0, 80).replace(/\s+/g, " ").trim(); } catch (_) {}
+            detail = "HTTP " + r.status + " " + r.statusText + "（" + u.pathname + "）" +
+              (body ? " — 响应内容: " + body : "");
+            fatal = r.status < 500 && RETRYABLE.indexOf(r.status) === -1;
+          }
+        } catch (e) {
+          detail = "网络错误: " + (e && e.message ? e.message : e);
+        }
+        if (fatal) break;
+      }
+      throw new Error("取 app.wasm 失败 — " + detail +
+        "。已重试 3 次。请强制刷新（Ctrl+Shift+R）后重试; 若持续失败, 请把这条信息与控制台报错一并反馈。");
+    }
+
     (async () => {
       const ld = document.getElementById("loading");
       try {
-        // 用 arrayBuffer 分支实例化, 避免 GitHub Pages 对 .wasm 的 Content-Type
-        // 影响 compileStreaming(对 application/octet-stream 会直接抛错)。
-        const bytes = await fetch("app.wasm").then(r => r.arrayBuffer());
+        const bytes = await fetchWasm();
         const obj = await WebAssembly.compile(bytes);
 
         // 顺序不能反: 插件先把自己的函数(register_plugin)挂进 importObject.env,
@@ -64,7 +121,7 @@
         inst.exports.main();
       } catch (e) {
         console.error(e);
-        if (ld) ld.textContent = "加载失败：" + e;
+        if (ld) ld.textContent = "加载失败：" + (e && e.message ? e.message : e);
       }
     })();
   </script>
