@@ -40,6 +40,8 @@ import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 悬浮窗宿主 —— WebView 版(M1)。
@@ -75,6 +77,22 @@ public class OverlayService extends Service implements PetBridge.Host {
     /** 壳内离线 TTS 的说话人 id(SharedPreferences "pet" 键 "tts_native_sid", 可选)。
      *  vits-icefall-zh-aishell3 有 174 个说话人, 0..173; 默认 0。 */
     public static final String PREF_TTS_SID = "tts_native_sid";
+
+    /**
+     * 音色试听用的 sid 文件(放在**用户素材目录**里, 内容就是一个数字)。
+     *
+     * 为什么需要它: SharedPreferences 在非 root 设备上**外部写不进去**, 而改 prefs 默认值
+     * 就得重建 APK —— 试听一个音色要等一次构建。改成读素材目录文件后, 换音色 = 丢个
+     * 文本文件(秒级生效, 无需 adb / root), 与「角色素材外置」是同一个思路。
+     *
+     * 例: /sdcard/Android/data/rust.cute_pet/files/assets/pet/tts_sid.txt  内容: 27
+     * 试听样本生成: pet/tools/tts_audition/README.md
+     */
+    private static final String TTS_SID_FILE = "pet/tts_sid.txt";
+
+    /** 上次生效的 sid 与来源, 只在变化时打日志(避免每句话刷屏)。 */
+    private int lastSid = Integer.MIN_VALUE;
+    private String lastSidSource = "";
 
     /** 网络导入预设: 已获柚子社授权、托管在 lain42.top 的丛雨素材包 */
     private static final String PRESET_MURASAME_URL =
@@ -549,8 +567,60 @@ public class OverlayService extends Service implements PetBridge.Host {
 
     @Override
     public void ttsSpeak(String text) {
-        if (tts != null) {
-            tts.speak(text);
+        if (tts == null) {
+            return;
+        }
+        // 每次说话都重新解析 sid → 改素材目录里的 tts_sid.txt **即时生效**(不必重启服务)
+        tts.setSid(resolveTtsSid());
+        tts.speak(text);
+    }
+
+    /**
+     * sid 优先级: **素材目录文件 > SharedPreferences > 0**。
+     * 文件方式用于音色试听(见 TTS_SID_FILE 注释); 读不到/内容非法就静默回退, 不影响说话。
+     */
+    private int resolveTtsSid() {
+        for (File dir : assetDirs()) {
+            for (String rel : new String[]{TTS_SID_FILE, "tts_sid.txt"}) {
+                File f = new File(dir, rel);
+                try {
+                    if (!f.isFile()) {
+                        continue;
+                    }
+                    int v = TtsSidFile.parse(readText(f));
+                    if (v >= 0) {
+                        noteSid(v, "素材目录文件 " + f.getPath());
+                        return v;
+                    }
+                    android.util.Log.w(TAG, "tts_sid.txt 内容非法(需 >=0 的整数): " + f);
+                } catch (Exception e) {
+                    android.util.Log.w(TAG, "tts_sid.txt 读取失败 " + f + ": " + e);
+                }
+            }
+        }
+        int v = getSharedPreferences("pet", MODE_PRIVATE).getInt(PREF_TTS_SID, 0);
+        noteSid(v, "SharedPreferences");
+        return v;
+    }
+
+    private void noteSid(int sid, String source) {
+        if (sid != lastSid || !source.equals(lastSidSource)) {
+            lastSid = sid;
+            lastSidSource = source;
+            android.util.Log.i(TAG, "TTS sid = " + sid + " (来源: " + source + ")");
+        }
+    }
+
+    /** 读小文本文件(sid 文件只有几个字节, 不做流式处理)。 */
+    private static String readText(File f) throws Exception {
+        try (FileInputStream in = new FileInputStream(f)) {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            byte[] buf = new byte[64];
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                bos.write(buf, 0, n);
+            }
+            return new String(bos.toByteArray(), StandardCharsets.UTF_8);
         }
     }
 

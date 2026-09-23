@@ -69,6 +69,11 @@ jobs:
           fi
           ls -d "$SDK"/build-tools/* "$SDK"/platforms/*
 
+      - name: 纯 Java 单测(不依赖 Android 的逻辑单元)
+        # 壳不用 Gradle; android.jar 在 JVM 上全是 Stub! ⇒ 只能测"不 import android.*"的
+        # 纯逻辑单元(如 TtsSidFile)。零依赖 javac + 手写断言, 见 tools/README 与脚本注释。
+        run: bash pet/webview/android/tools/run_pure_java_tests.sh
+
       - name: Build APK
         run: bash pet/webview/android/build.sh --out dist-shell
 

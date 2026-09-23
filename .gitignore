@@ -151,7 +151,9 @@ pet/webview/web/vendor/kokoro-zh/espeak-ng.wasm
 pet/webview/android/third_party/
 
 # 壳的 CI 产物输出(本地用 --out dist-shell 复现 CI 时产生)
+# 用通配覆盖 `--out dist-shell-v2` 这类临时输出目录(run_pure_java_tests/build.sh 调试常见)
 /dist-shell/
+/dist-shell*/
 pet/webview/android/dist-shell/
 
 # ─────────────── 本机试验/打包中间产物(仓库根) ───────────────

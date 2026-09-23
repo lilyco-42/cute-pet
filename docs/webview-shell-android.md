@@ -564,6 +564,38 @@ APK 体积：~25MB → **51MB**。
   `adb logcat -s CutePetTts` 看 `init ok` / `generate` 耗时。
 - 第二步（已预留）：换 **ZipVoice int8 + 丛雨参考音** —— 1.13.8 已内置
   `OfflineTtsZipVoiceModelConfig`；参考音走用户自备素材目录（合规，不进包）。
+  ⚠️ 先看清代价（2026-09-23 实测/查证）：ZipVoice int8 ~100MB + vocos 54MB ⇒ 进包 APK 会到
+  ~195MB；内存 500–800MB；RTF 1.3–1.55（合成慢于播放）；且**需要参考音 + 逐字文本严格匹配**。
+  「模型外置」路线受限于 Java API：Android AAR 只公开 `OfflineTts(AssetManager, cfg)`，
+  `newFromFile(cfg)` 是 `private final native`（JNI 符号在）⇒ 需反射接管 ptr，动工前先真机验证。
+- 更便宜的替代（**零包体增长**，见 §14.5）：从现有模型的 174 个 speaker 里挑音色。
+
+### 14.5 音色选择与试听（零包体增长）
+
+现用模型 `vits-icefall-zh-aishell3` 自带 **174 个说话人**（`sid` 0..173），换音色不增加包体。
+
+**试听**（`pet/tools/tts_audition/`）：`generate.py` 用与 APK **同一份模型 + 同版本
+sherpa-onnx(1.13.8) + 同参数**（noise_scale 0.667 / 0.8 / 1.0 / num_threads 2）批量合成
+174 条，`index.py` 算中位基频（F0）把女声区排前面并生成 `index.html`；另有拼接版
+`all-sids.wav`（每条先念编号）可一遍盲听扫描。程序初筛 + 人耳终选，不必盲听 174 条。
+
+**切换**（无需重建 APK）：在用户素材目录放一个纯文本文件，内容就是编号 ——
+
+```
+/sdcard/Android/data/rust.cute_pet/files/assets/pet/tts_sid.txt   →  27
+```
+
+优先级 **素材目录文件 > SharedPreferences(`tts_native_sid`) > 0**；每次说话都重读 ⇒
+**改完即时生效**（不必重启服务、不必 adb / root）。生效值会打日志
+（`CutePetTts` 的 `TTS sid = 27 (来源: …)`）。想固化成默认值就改
+`OverlayService` 里 `getInt(PREF_TTS_SID, 0)` 的默认值。
+
+> 为什么走文件而不是 direct 写 SharedPreferences：非 root 设备上外部写不进 app 的
+> prefs，而改默认值要重建 APK —— 试听一个音色等一次构建，体验太差。文件方式与
+> 「角色素材外置」是同一个思路。
+>
+> 解析器 `TtsSidFile` 是纯 Java（无 Android 依赖）⇒ 可在 JVM 上单测：
+> `bash pet/webview/android/tools/run_pure_java_tests.sh`（CI 已接入）。
 
 ---
 
