@@ -155,6 +155,7 @@ pet/webview/android/third_party/
 /dist-shell/
 /dist-shell*/
 pet/webview/android/dist-shell/
+pet/webview/android/dist-shell*/
 
 # ─────────────── 本机试验/打包中间产物(仓库根) ───────────────
 # dist-assets 是本地角色素材中转目录 —— 含第三方版权素材, 绝不能入库;

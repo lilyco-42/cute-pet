@@ -106,8 +106,27 @@
         // 壳环境: 资源来自 APK assets(file://)。WebView 必须开
         // setAllowFileAccessFromFileURLs / setAllowUniversalAccessFromFileURLs,
         // 否则 fetch("app.wasm") 会被同源策略挡掉。
-        const bytes = await fetch("app.wasm").then(r => r.arrayBuffer());
-        const obj = await WebAssembly.compile(bytes);
+        //
+        // ⚠️ 不能照搬 pages/index.html 的 `if (!r.ok) throw`: file:// 下
+        // response.status 恒为 0、r.ok 恒为 false(加载成功也是如此!)。
+        // 所以: http(s)(status!==0)查状态码; file:// 只能靠下面的 magic word 兜底。
+        const r = await fetch("app.wasm");
+        if (r.status !== 0 && !r.ok) {
+          throw new Error("取 app.wasm 失败: HTTP " + r.status + " " + r.statusText);
+        }
+        // fetch 对 4xx 不会 reject, 错误页正文会被当二进制交上来, compile 只会报
+        // "expected magic word ... found 46 6f 72 62"(="Forb")这种天书; 而 file://
+        // 下又没有可靠状态码 —— magic word 校验是两条路共用的最后防线。
+        const buf = new Uint8Array(await r.arrayBuffer());
+        if (!(buf.length >= 4 && buf[0] === 0x00 && buf[1] === 0x61 &&
+              buf[2] === 0x73 && buf[3] === 0x6d)) {
+          const hex = Array.prototype.map.call(buf.slice(0, 4),
+            b => b.toString(16).padStart(2, "0")).join(" ");
+          throw new Error("app.wasm 内容不是 WebAssembly（前 4 字节 " + hex +
+            ", 应为 00 61 73 6d）" + (r.status !== 0 ? ", HTTP " + r.status : "") +
+            "；若持续出现, 说明 APK 内的 app.wasm 缺失或已损坏");
+        }
+        const obj = await WebAssembly.compile(buf);
 
         // 顺序不能反: 插件先挂 importObject.env, 再补缺失桩(见 pages/index.html 注释)
         register_plugins(plugins);
