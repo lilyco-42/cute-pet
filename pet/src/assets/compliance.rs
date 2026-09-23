@@ -5,6 +5,9 @@
 #[cfg(test)]
 mod asset_decoupling_tests {
     use crate::assets::registry::{CoreAsset, is_character_asset, load_asset};
+    // CharAsset 仅在 bundle-murasame 下编译, 导入必须同步门控, 否则商业构建炸 E0432。
+    #[cfg(feature = "bundle-murasame")]
+    use crate::assets::registry::CharAsset;
 
     /// 铁律: 核心资产表绝不能含任何第三方版权角色素材。
     /// 商业构建(`--no-default-features`)只用这张表 —— 这条挂了就等于商业包漏带素材。

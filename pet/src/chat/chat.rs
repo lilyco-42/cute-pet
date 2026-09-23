@@ -71,7 +71,7 @@ pub struct Persona {
 ///   绝不把角色台词编进商业二进制。
 #[cfg(feature = "bundle-murasame")]
 fn default_persona_text() -> String {
-    include_str!("../assets/murasame_persona.txt").to_string()
+    include_str!("../../assets/murasame_persona.txt").to_string()
 }
 
 #[cfg(not(feature = "bundle-murasame"))]
