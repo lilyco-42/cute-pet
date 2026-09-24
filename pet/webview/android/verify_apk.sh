@@ -75,6 +75,14 @@ echo "[5/8] 内容层"
 for f in pet/index.html pet/app.wasm pet/pet_bridge.js pet/ply_bundle.js; do
   if printf '%s\n' "$ENTRIES" | grep -qx "$f"; then ok "$f"; else bad "缺 $f"; fi
 done
+# Launcher 图标: res 编译后以 res/mipmap-*-v4/ic_launcher.png 存在。
+# (manifest 引用由 aapt2 link 编译期保证 —— 引用缺失 link 直接失败;
+#  不对二进制 AXML 做 grep: 其字符串池为 UTF-16, ASCII grep 恒不匹配, 会误报)
+if printf '%s\n' "$ENTRIES" | grep -q "res/mipmap-.*ic_launcher\.png"; then
+  ok "launcher 图标(mipmap)已内置"
+else
+  bad "缺 launcher 图标(@mipmap/ic_launcher)"
+fi
 
 # ---------- 6. 死重防线: web TTS 路由已下线, 不许回流 ----------
 # 该路由(kokoro-zh)已因音素集不匹配「前半句糊 + 英文口音」+ 需联网拉模型而下线

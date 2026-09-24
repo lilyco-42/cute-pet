@@ -196,13 +196,22 @@ GEN_WIN="$(winpath "$build/gen")"
 APK_WIN="$(winpath "$build/app.unaligned.apk")"
 
 echo "aapt2 link ..."
-# res 目录不存在也能 link(本壳零资源, UI 全在代码里搭)
+# res 目录存在时先 compile(含 mipmap/ic_launcher 图标); 不存在也能 link
+# (本壳 UI 全在代码里搭, res 只有图标, 属可选)
+RES_ARGS=()
+if [ -d "$here/res" ] && find "$here/res" -type f | grep -q .; then
+  echo "aapt2 compile res ..."
+  "$AAPT2" compile --dir "$(winpath "$here/res")" -o "$(winpath "$build/res.zip")" || {
+    echo "aapt2 compile res 失败"; exit 1; }
+  RES_ARGS+=("$(winpath "$build/res.zip")")
+fi
 "$AAPT2" link \
   -I "$ANDROID_JAR" \
   --manifest "$MANIFEST_ARG" \
   --min-sdk-version 26 \
   --target-sdk-version 33 \
   --java "$GEN_WIN" \
+  "${RES_ARGS[@]}" \
   -o "$APK_WIN" || {
     echo "aapt2 link 失败"; exit 1; }
 
