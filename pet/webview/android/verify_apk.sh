@@ -49,6 +49,8 @@ DEX_DUMP="$(unzip -p "$APK" classes.dex 2>/dev/null | grep -ac 'com/k2fsa/sherpa
 [ "${DEX_DUMP:-0}" -gt 0 ] && ok "dex 含 sherpa-onnx 类" || bad "dex 里找不到 com/k2fsa/sherpa/onnx(桥接会崩)"
 DEX_KT="$(unzip -p "$APK" classes.dex 2>/dev/null | grep -ac 'kotlin/jvm/internal' || true)"
 [ "${DEX_KT:-0}" -gt 0 ] && ok "dex 含 kotlin-stdlib 类" || bad "dex 里找不到 kotlin/jvm/internal(sherpa Java 层依赖它)"
+DEX_LLM="$(unzip -p "$APK" classes.dex 2>/dev/null | grep -ac 'LlmConfigFile' || true)"
+[ "${DEX_LLM:-0}" -gt 0 ] && ok "dex 含 LlmConfigFile(AI 对话配置解析)" || bad "dex 里找不到 LlmConfigFile(壳内 AI 对话配置失效)"
 
 # ---------- 3. TTS 模型: 5 件基础件 ----------
 echo "[3/8] 离线 TTS 模型"
@@ -83,6 +85,14 @@ if printf '%s\n' "$ENTRIES" | grep -q "res/mipmap-.*ic_launcher\.png"; then
 else
   bad "缺 launcher 图标(@mipmap/ic_launcher)"
 fi
+# 壳内 AI 对话接线(pet_bridge.js 是文本, 可直接 grep): wasm 侧 LLM 轮询桥的 JS 端
+# 必须与 app.wasm 同包 —— 缺接线 = 聊天面板悄悄退回纯语料兜底(静默失效, 难排查)。
+BRIDGE_JS="$(unzip -p "$APK" pet/pet_bridge.js 2>/dev/null | grep -ac 'cute_pet_llm_poll' || true)"
+[ "${BRIDGE_JS:-0}" -gt 0 ] && ok "pet_bridge.js 含 LLM 轮询桥接线" \
+  || bad "pet_bridge.js 缺 LLM 轮询桥接线(cute_pet_llm_poll)"
+BRIDGE_CFG="$(unzip -p "$APK" pet/pet_bridge.js 2>/dev/null | grep -ac 'cutePetLLM' || true)"
+[ "${BRIDGE_CFG:-0}" -gt 0 ] && ok "pet_bridge.js 含 cutePetLLM 配置入口" \
+  || bad "pet_bridge.js 缺 cutePetLLM 配置入口"
 
 # ---------- 6. 死重防线: web TTS 路由已下线, 不许回流 ----------
 # 该路由(kokoro-zh)已因音素集不匹配「前半句糊 + 英文口音」+ 需联网拉模型而下线

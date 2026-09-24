@@ -599,6 +599,64 @@ sherpa-onnx(1.13.8) + 同参数**（noise_scale 0.667 / 0.8 / 1.0 / num_threads 
 
 ---
 
+## 15. 壳内 AI 对话（LLM 轮询桥，2026-09-24）
+
+> 此前 wasm 无同步网络，`respond_llm` 在 wasm 是桩（恒 Err）⇒ 悬浮窗聊天面板
+> 只有语料兜底——AI 对话在壳内缺席。本节把它打通，桌面/Android 原生行为不变。
+
+### 15.1 架构：异步轮询桥（复用「JS 调 wasm 导出」模式）
+
+```text
+[wasm 帧] 用户输入 ── chat::llm_bridge::submit_wasm ──▶ pending
+[JS] setInterval 250ms ── cute_pet_llm_poll() / cute_pet_llm_poll_ptr() ──▶ 取请求 JSON
+[JS] fetch {base}/v1/chat/completions（OpenAI 兼容）
+[JS] ── cute_pet_alloc + cute_pet_llm_resolve(id, ptr, len) ──▶ completed
+[wasm 帧] take_completed() ──▶ 成功: LLM 回复+SPEAK 朗读; 失败: 语料兜底（不退化）
+```
+
+要点：
+- **单 in-flight + 新输入覆盖旧请求**：连发多条只处理最后一条（聊天场景合理）；
+  resolve 带 id，被作废请求的迟到回复按 id 丢弃，不串话。
+- **u64 陷阱**：JS(f64) 只能精确到 2^53，u64 打包「指针+长度」会丢精度 ⇒ 拆成
+  `cute_pet_llm_poll() -> u32`（长度，0=无）与 `cute_pet_llm_poll_ptr() -> *const u8`
+  两次调用；数据缓冲 thread_local 复用，无泄漏。
+- **失败永不卡死**：未配置 → JS 立即回 `{ok:false}`；请求失败/30s 超时 → 同样。
+  wasm 帧收到失败标记 → 走语料兜底，行为与未接 AI 前一致。
+- 状态机在 `pet/src/chat/llm_bridge.rs`，双平台编译（7 个单测，`cargo test --lib`）。
+
+### 15.2 端点配置（三级，与 TTS 同风格）
+
+| 优先级 | 来源 | 说明 |
+|---|---|---|
+| 1 | URL 参数 `?llm=&llm_key=&llm_model=` | 一次性试用 |
+| 2 | localStorage `pet_llm_url` / `pet_llm_key` / `pet_llm_model` | 浏览器/控制台手填 |
+| 3 | **素材目录文件注入**（壳内推荐） | `assets/pet/llm_config.json` |
+
+壳内文件（`/sdcard/Android/data/rust.cute_pet/files/assets/pet/llm_config.json`，
+与 tts_sid.txt 同目录模式，改文件后重启悬浮窗生效）：
+
+```json
+{"base_url":"https://api.deepseek.com","api_key":"sk-...","model":"deepseek-chat"}
+```
+
+- 解析器 `LlmConfigFile`（纯 Java 无 Android 依赖）⇒ JVM 单测
+  （`tools/run_pure_java_tests.sh`，CI 已接入）；`base_url`/`api_key` 缺一即整体拒绝
+  （不注入半套配置）。
+- 注入链：`OverlayService.onPageFinished → applyLlmConfig() → evalJs
+  setConfig`（`window.cutePetLLM`，key 查询接口打码防截图泄露）。
+- 任何 OpenAI 兼容端点都可用（deepseek / NVIDIA NIM / OpenRouter / 自建
+  lyco_chat——注意 CloudStudio 空间停止后预览地址会 403「工作空间已停止」）。
+- 免费模型渠道见聊天面板底部提示（`open_llm_hint_page`）。
+
+### 15.3 验证
+
+- Rust：`cargo test --lib llm_bridge`（双配置，覆盖 submit/poll/resolve/覆盖/串话/非法 JSON）。
+- Java：`bash tools/run_pure_java_tests.sh`（LlmConfigFileTest 13 项脏输入断言）。
+- 产物：`verify_apk.sh` 新增 3 条断言——dex 含 LlmConfigFile、pet_bridge.js 含
+  LLM 轮询桥接线与 cutePetLLM 入口。
+
+---
+
 ## 10. 一句话总结
 
 > 走 wasm + WebView 能砍掉的是「逻辑/渲染层的多平台编译与适配」，

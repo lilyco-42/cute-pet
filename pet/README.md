@@ -59,6 +59,18 @@ PET_LLM_MODEL=lyco
 ```
 一键部署见 `../docs/lyco-chat-cloud-deploy.md`（认证 → 传源码 → 云端 cargo build → setsid 启动 serve → 预览地址）。模型训练也在云端 T4 GPU 完成。
 
+> ⚠️ CloudStudio 工作空间停止后预览地址会 403「工作空间已停止」——服务不在了，
+> 重启空间即恢复（部署脚本都在 docs 里）。
+
+**壳内 AI 对话（Android 悬浮窗 / Pages wasm）**：wasm 无同步网络，LLM 走
+**异步轮询桥**（`chat::llm_bridge` + `pet_bridge.js` 的 JS fetch），端点配置
+（与桌面 env 同级的三级来源）：
+- 悬浮窗（推荐）：素材目录 `assets/pet/llm_config.json`，内容
+  `{"base_url":"https://...","api_key":"sk-...","model":"deepseek-chat"}`，重启悬浮窗生效；
+- 浏览器：URL 参数 `?llm=&llm_key=&llm_model=` 或 localStorage `pet_llm_url` 等；
+- 未配置/请求失败/超时 → 语料兜底，行为与无 AI 时一致（不退化）。
+详见 `docs/webview-shell-android.md` §15。
+
 **官方中译语料**：默认加载 `murasame_corpus_zh.jsonl`（4404 条，从汉化版 `patch.xp3` 剧本提取的丛雨官方中文台词，语音码与日文原版对齐）。设 `PET_CORPUS_JP=1` 可回退日文原版 `murasame_corpus.jsonl`。额外配置 `PET_LLM_API_KEY` 时，未匹配到中文的日文台词会自动 LLM 翻译（`chat::translate_to_chinese` + `has_kana`）。
 
 ### 学习「喜欢的人」的语气

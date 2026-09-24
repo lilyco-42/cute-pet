@@ -874,6 +874,28 @@ pub async fn run() {
                 );
             }
         }
+        // wasm 异步 LLM 桥消费: JS 侧(pet_bridge.js, 壳内 fetch / 浏览器直连)回填的结果
+        // → 成功显示 LLM 回复; 失败(未配置/网络挂)走语料兜底, 与改造前 wasm 行为一致不退化
+        #[cfg(target_arch = "wasm32")]
+        if let Some((orig_input, reply)) = crate::chat::llm_bridge::take_completed() {
+            let text = match reply {
+                Some(t) => t,
+                None => {
+                    // LLM 不可用 → 语料兜底(wasm 无 translate 桩, 与原同步路径一致)
+                    let persona = if lang == Lang::Zh { &persona_zh } else { &persona_jp };
+                    match persona.respond_corpus(&orig_input) {
+                        Some((t, _v)) => t, // wasm 无 ffmpeg, 语料原声不可播(与现状一致)
+                        None => if lang == Lang::Jp { "(返答なし)".to_string() } else { "(无回复)".to_string() },
+                    }
+                }
+            };
+            chat_state.history.push(ChatMessage::pet(&text));
+            last_reply = text.clone();
+            // JS 侧拦截 console.log SPEAK 前缀 → 壳内离线 TTS 朗读(点击/回复必有声音)
+            println!("SPEAK:{}", text);
+            speech_line = Some((text.clone(), now + 3.5));
+            talk_until = now + 2.0; // 发声时触发口型动画
+        }
         // 统一处理输入: 聊天面板事件(快捷按钮/输入框) → 回复(气泡在下一帧显示)
         let submitted: Vec<String> = std::mem::take(&mut chat_events.borrow_mut().submitted);
         for input in submitted {
@@ -971,6 +993,20 @@ pub async fn run() {
                 .into_iter()
                 .rev()
                 .collect();
+            // wasm: LLM 走 JS 桥异步轮询(chat::llm_bridge —— 壳内 WebView fetch / 浏览器直连)。
+            // 提交后本帧先不回复(下一帧起由帧首 take_completed 消费);
+            // JS 无配置/请求失败会立即回失败标记 → 下一帧语料兜底, 用户几乎无感。
+            #[cfg(target_arch = "wasm32")]
+            {
+                let hist: Vec<(&str, &str)> = history
+                    .iter()
+                    .map(|(w, t)| (w.as_str(), t.as_str()))
+                    .collect();
+                crate::chat::llm_bridge::submit_wasm(&persona.system_prompt, &hist, &input);
+                continue;
+            }
+            // 桌面/Android 原生: 同步 LLM(ureq), 失败语料兜底 —— 与整合前一致
+            #[cfg(not(target_arch = "wasm32"))]
             let (text, voice) = match persona.respond_llm(&history, &input) {
                 Ok(s) => (s, None),
                 Err(_) => match persona.respond_corpus(&input) {
@@ -991,8 +1027,10 @@ pub async fn run() {
                     ),
                 },
             };
-            chat_state.history.push(ChatMessage::pet(&text));
-            last_reply = text.clone();
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                chat_state.history.push(ChatMessage::pet(&text));
+                last_reply = text.clone();
             // 语料语音: 桌面 ffmpeg 播放; Android/鸿蒙无 ffmpeg 丢弃走 TTS
             let mut want_tts = true;
             if let Some(v) = voice {
@@ -1013,6 +1051,7 @@ pub async fn run() {
                     let result = crate::chat::synthesize_remote(&tts_text).map_err(|e| e.to_string());
                     *target.lock().unwrap() = Some(result);
                 });
+            }
             }
         }
 
