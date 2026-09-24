@@ -220,7 +220,10 @@ public class OverlayService extends Service implements PetBridge.Host {
                 android.util.Log.i(TAG, "page finished: " + url);
                 // MVP: 页面加载完启动内置 mock agent(默认桌宠演示大脑)。
                 // 后续接 lilyco-approve 真大脑(router_v13 + AgentOps.runA11y)时移除此行。
-                view.post(() -> evalJs("(window.__mockAgent&&window.__mockAgent.start())"));
+                view.post(() -> {
+                    evalJs("(window.__mockAgent&&window.__mockAgent.start())");
+                    applyLlmConfig();
+                });
             }
         });
         webView.setWebChromeClient(new WebChromeClient());
@@ -563,8 +566,45 @@ public class OverlayService extends Service implements PetBridge.Host {
         evalJs("window.cutePetImportBundle(" + JSONObject.quote(u) + ")");
     }
 
-    // ---------------- 壳内离线 TTS ----------------
+    // ---------------- 壳内 AI 对话(LLM 端点注入) ----------------
 
+    /** AI 对话配置: 素材目录 assets/pet/llm_config.json(与 tts_sid.txt 同目录模式)。
+     *  内容: {"base_url":"https://...","api_key":"sk-...","model":"deepseek-chat"} */
+    private static final String LLM_CONFIG_FILE = "pet/llm_config.json";
+
+    /**
+     * 读素材目录的 llm_config.json 并注入 window.cutePetLLM(pet_bridge.js)。
+     * 缺文件/解析失败 = 不注入 ⇒ JS 侧未配置, LLM 请求立即失败标记 → 语料兜底,
+     * 行为与未接 AI 对话的旧版一致(绝不因配置问题白屏/卡死)。
+     * 启动时注入一次; 改文件后重启悬浮窗生效(与素材导入同节奏)。
+     */
+    private void applyLlmConfig() {
+        for (File dir : assetDirs()) {
+            File f = new File(dir, LLM_CONFIG_FILE);
+            try {
+                if (!f.isFile()) {
+                    continue;
+                }
+                LlmConfigFile.Config cfg = LlmConfigFile.parse(readText(f));
+                if (cfg == null) {
+                    android.util.Log.w(TAG, "llm_config.json 内容非法(需 base_url + api_key): " + f);
+                    return;
+                }
+                evalJs("window.cutePetLLM&&window.cutePetLLM.setConfig("
+                        + JSONObject.quote(cfg.baseUrl) + ","
+                        + JSONObject.quote(cfg.apiKey) + ","
+                        + JSONObject.quote(cfg.model == null ? "" : cfg.model) + ")");
+                android.util.Log.i(TAG, "AI 对话端点已注入: " + cfg.baseUrl
+                        + " model=" + (cfg.model == null ? "(默认)" : cfg.model));
+                return;
+            } catch (Exception e) {
+                android.util.Log.w(TAG, "llm_config.json 读取失败 " + f + ": " + e);
+            }
+        }
+        android.util.Log.i(TAG, "未找到 llm_config.json, 壳内 AI 对话未配置(聊天走语料兜底)");
+    }
+
+    // ---------------- 壳内离线 TTS ----------------
     @Override
     public void ttsSpeak(String text) {
         if (tts == null) {

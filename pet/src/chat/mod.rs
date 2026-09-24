@@ -2,5 +2,6 @@
 
 pub mod chat;
 pub mod chatlog;
+pub mod llm_bridge;
 pub use chat::*;
 pub use chatlog::*;

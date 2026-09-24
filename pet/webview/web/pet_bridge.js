@@ -419,6 +419,125 @@
     }
   };
 
+  // ---------------- AI 对话(LLM 轮询桥 ←→ wasm chat::llm_bridge) ----------------
+  // wasm 无同步网络: 帧内把请求存进桥(chat::llm_bridge.submit), 本模块 250ms 轮询
+  // wasm 导出 cute_pet_llm_poll()/cute_pet_llm_poll_ptr() 取请求, fetch OpenAI 兼容
+  // 端点后调 cute_pet_llm_resolve 回填。未配置/失败 → 回 ok:false → wasm 走语料兜底,
+  // 行为不退化。壳内 WebView 已开 universal file access, fetch https 外网畅通;
+  // 浏览器(Pages/file://)直连看端点 CORS, 失败同样兜底。
+  // 配置优先级: URL 参数(?llm=&llm_key=&llm_model=) > localStorage(pet_llm_url 等)
+  //            > 壳启动注入(素材目录 assets/pet/llm_config.json → evalJs setConfig)。
+  var llmCfg = { base: "", key: "", model: "" };
+  try {
+    var llmQuery = location.search;
+    var llmM1 = llmQuery.match(/[?&]llm=([^&]+)/);
+    var llmM2 = llmQuery.match(/[?&]llm_key=([^&]+)/);
+    var llmM3 = llmQuery.match(/[?&]llm_model=([^&]+)/);
+    llmCfg.base = llmM1 ? decodeURIComponent(llmM1[1]) : (localStorage.getItem("pet_llm_url") || "");
+    llmCfg.key = llmM2 ? decodeURIComponent(llmM2[1]) : (localStorage.getItem("pet_llm_key") || "");
+    llmCfg.model = llmM3 ? decodeURIComponent(llmM3[1]) : (localStorage.getItem("pet_llm_model") || "");
+  } catch (e) {}
+
+  window.cutePetLLM = {
+    /** 壳启动时注入(OverlayService 读素材目录 llm_config.json 后 evalJs 调用);
+     *  也可在 WebView 控制台手填。参数留空表示保留原值。 */
+    setConfig: function (base, key, model) {
+      if (base) llmCfg.base = String(base);
+      if (key) llmCfg.key = String(key);
+      if (model) llmCfg.model = String(model);
+      return { base: llmCfg.base, model: llmCfg.model, hasKey: !!llmCfg.key };
+    },
+    /** 查看当前配置(key 打码, 防止截图泄露) */
+    config: function () {
+      return { base: llmCfg.base, model: llmCfg.model,
+               keyMasked: llmCfg.key ? llmCfg.key.slice(0, 4) + "****" : "" };
+    },
+    clear: function () { llmCfg = { base: "", key: "", model: "" }; }
+  };
+
+  /** 把结果写回 wasm 桥(ok=false → wasm 帧循环走语料兜底) */
+  function llmResolve(id, ok, text) {
+    try {
+      var payload = JSON.stringify({ id: id, ok: ok, text: text || "" });
+      var bytes = new TextEncoder().encode(payload);
+      var p = wasm_exports.cute_pet_alloc(bytes.length);
+      new Uint8Array(wasm_memory.buffer, p, bytes.length).set(bytes);
+      wasm_exports.cute_pet_llm_resolve(id, p, bytes.length);
+    } catch (e) {
+      console.warn("[llm-bridge] resolve 失败(下一帧语料兜底):", e);
+    }
+  }
+
+  /** 处理一条从 wasm 桥取来的请求: {"id":N,"system":"..","history":[[who,text]..],"input":".."} */
+  function llmHandleRequest(req) {
+    var id = req.id;
+    if (!llmCfg.base || !llmCfg.key) {
+      llmResolve(id, false, ""); // 未配置 → 立即失败标记, 用户无感走兜底
+      return;
+    }
+    var messages = [];
+    if (req.system) {
+      messages.push({ role: "system", content: String(req.system) });
+    }
+    (req.history || []).forEach(function (h) {
+      messages.push({ role: h[0] === "user" ? "user" : "assistant", content: String(h[1] || "") });
+    });
+    messages.push({ role: "user", content: String(req.input || "") });
+    var url = llmCfg.base.replace(/\/+$/, "") + "/v1/chat/completions";
+    var body = JSON.stringify({
+      model: llmCfg.model || "gpt-4o-mini",
+      messages: messages,
+      temperature: 0.9
+    });
+    // 超时 30s: 先回失败标记(wasm 走兜底); 晚到的真实回复因请求已被消费而安全丢弃
+    var finished = false;
+    var timer = setTimeout(function () {
+      if (!finished) {
+        finished = true;
+        llmResolve(id, false, "");
+      }
+    }, 30000);
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + llmCfg.key },
+      body: body
+    }).then(function (r) {
+      if (!r.ok) { throw new Error("HTTP " + r.status + " " + r.statusText); }
+      return r.json();
+    }).then(function (v) {
+      if (finished) { return; }
+      finished = true;
+      clearTimeout(timer);
+      var text = v && v.choices && v.choices[0] && v.choices[0].message && v.choices[0].message.content;
+      text = (text || "").trim();
+      llmResolve(id, !!text, text.slice(0, 500)); // 防超长回复撑爆悬浮窗气泡
+    }).catch(function (e) {
+      if (finished) { return; }
+      finished = true;
+      clearTimeout(timer);
+      console.warn("[llm-bridge] 请求失败(走语料兜底): " + e);
+      llmResolve(id, false, "");
+    });
+  }
+
+  // 轮询器: 仅当 wasm 含 llm 桥导出(cute-pet 本版本起)才启动; 一次处理一条。
+  setInterval(function () {
+    if (typeof wasm_exports === "undefined" || !wasm_exports ||
+        !wasm_exports.cute_pet_llm_poll || !wasm_exports.cute_pet_alloc) {
+      return;
+    }
+    var len = wasm_exports.cute_pet_llm_poll();
+    if (!len) { return; }
+    try {
+      var ptr = wasm_exports.cute_pet_llm_poll_ptr();
+      var bytes = new Uint8Array(wasm_memory.buffer, ptr, len);
+      var req = JSON.parse(new TextDecoder().decode(bytes));
+      llmHandleRequest(req);
+    } catch (e) {
+      console.warn("[llm-bridge] 请求读取失败:", e);
+    }
+  }, 250);
+
   // 暴露给原生桥(通过 evalJs 调用)与本地 mock agent
   // agentSay 同时驱动: 气泡(渲染) + 语音(TTS)
   window.PetShell.agentSay = function (text) {
