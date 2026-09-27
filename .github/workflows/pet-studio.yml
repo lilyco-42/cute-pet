@@ -15,6 +15,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
       - run: npm install --no-save --package-lock=false playwright@1.55.1
         working-directory: tools/pet-studio
       - run: npx playwright install --with-deps chromium
@@ -25,3 +28,10 @@ jobs:
         working-directory: tools/pet-studio
       - run: python verify-petpack.py "$RUNNER_TEMP/lain42-petpack-smoke.petpack"
         working-directory: tools/pet-studio
+      - name: Validate with the target player's pinned package checker
+        run: |
+          curl --fail --silent --show-error --location \
+            --output "$RUNNER_TEMP/petpack_tool.py" \
+            https://raw.githubusercontent.com/redniu123/pet-player/342999f2603261665beaf7adb9e89ce8ff3adeab/skills/desktop-pet-maker/scripts/petpack_tool.py
+          python -m pip install --disable-pip-version-check 'Pillow==12.1.1'
+          python "$RUNNER_TEMP/petpack_tool.py" validate "$RUNNER_TEMP/lain42-petpack-smoke.petpack"
