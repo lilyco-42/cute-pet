@@ -52,7 +52,7 @@ JS先承担图层与UI，WASM按需承担高成本解析/处理；不为使用WA
 
 ## 2026-09-27 ROI 复核
 
-以下是公开产品与代码的桌面研究，不是 TAM、收入预测或真实用户访谈。2026-09-27 重试后，OMA 仅拿到空的 Hacker News 结果；Reddit 返回 403、GitHub 抓取返回 422，网页 grounding 仍因本机代理无法连接 PyPI 下载 `ddgs` 而失败。因此社区抓取没有形成可计量的需求证据，不能把它的失败解释成没有需求。GitHub CLI 当前令牌也仍然无效。最终决策仍须用创作者试用和付费测试验证。
+以下是公开产品与代码的桌面研究，不是 TAM、收入预测或真实用户访谈。2026-09-27 重试后，临时绕过失效代理运行 OMA，网页 grounding 返回 8 条结果，但主要是产品/SEO介绍，没有用户规模或互动指标；Hacker News 为空，Reddit 返回 403，GitHub 抓取返回 422。它能给竞品线索，却没有形成可计量的需求证据。GitHub CLI 当前令牌仍然无效。不能把抓取失败当作没有需求，最终决策仍须用创作者试用和付费测试验证。
 
 同日通过 `curl --noproxy` 对 `https://api.lain42.top/v1/chat/completions` 发送只读 OPTIONS 请求，服务返回 204 并允许 `POST`、`Authorization` 和 `Content-Type` 跨域预检。没有发送 API Key；真实模型 completion、授权及计费仍未验证。
 
