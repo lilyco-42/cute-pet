@@ -1,15 +1,20 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const canvas = $('preview'), ctx = canvas.getContext('2d');
-let project = { version: 1, layers: [] }, selected = 0, history = [], busy = false;
+let project = { version: 1, layers: [] }, selected = 0, history = [], busy = false, proposal = null;
 const images = new Map();
 function report(text) { $('status').textContent = text; }
 function checkpoint() { history.push(JSON.stringify(project)); if (history.length > 20) history.shift(); }
-function draw() {
-  ctx.clearRect(0, 0, 768, 768);
-  for (const l of project.layers) if (l.visible) {
-    const im = images.get(l.src); if (im) ctx.drawImage(im, l.x, l.y, im.width * l.scale, im.height * l.scale);
+function drawProject(target, state, targetContext) {
+  const paint = targetContext || target.getContext('2d');
+  paint.clearRect(0, 0, target.width, target.height);
+  for (const layer of state.layers) if (layer.visible) {
+    const image = images.get(layer.src);
+    if (image) paint.drawImage(image, layer.x, layer.y, image.width * layer.scale, image.height * layer.scale);
   }
+}
+function draw() {
+  drawProject(canvas, project, ctx);
   const retained = new Set(project.layers.map(l => l.src));
   for (const entry of history) for (const l of JSON.parse(entry).layers) retained.add(l.src);
   for (const key of images.keys()) if (!retained.has(key)) images.delete(key);
@@ -21,6 +26,13 @@ function draw() {
     $(key).disabled = !l;
     if (key === 'visible') $(key).checked = l?.visible ?? false;
     else $(key).value = l?.[key] ?? '';
+  }
+  $('proposal').hidden = !proposal;
+  if (proposal) {
+    drawProject($('proposal-canvas'), proposal.candidate);
+    const stale = JSON.stringify(project) !== proposal.base;
+    $('proposal-warning').textContent = stale ? '项目已变化，此建议已过期，请重新生成。' : '图片仍只在本机。应用后仍可撤销。';
+    $('ai-apply').disabled = stale;
   }
 }
 function decode(src) {
@@ -35,12 +47,18 @@ async function run(action) {
   try { await action(); } catch (e) { report(e.message); } finally { busy = false; draw(); }
 }
 $('upload').onchange = () => run(async () => {
-  const f = $('upload').files[0]; if (!f) return;
-  if (project.layers.length >= 12 || f.size > 2 * 1024 * 1024 || f.type !== 'image/png') throw Error('最多 12 层，单个 PNG 不超过 2 MB');
-  const src = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(f); });
-  const im = await decode(src); images.set(src, im); checkpoint();
-  project.layers.push({ name: f.name.slice(0, 100), src, x: 0, y: 0, scale: Math.min(1, 768 / Math.max(im.width, im.height)), visible: true });
-  selected = project.layers.length - 1; report('部件已添加'); $('upload').value = '';
+  const files = Array.from($('upload').files); if (!files.length) return;
+  if (project.layers.length + files.length > 12) throw Error('最多添加 12 个部件');
+  const staged = [];
+  for (const file of files) {
+    if (file.size > 2 * 1024 * 1024 || file.type !== 'image/png') throw Error('每个部件都必须是小于 2 MB 的 PNG');
+    const src = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
+    const image = await decode(src);
+    staged.push({ layer: { name: file.name.slice(0, 100), src, x: 0, y: 0, scale: Math.min(1, 768 / Math.max(image.width, image.height)), visible: true }, image });
+  }
+  checkpoint();
+  for (const item of staged) { images.set(item.layer.src, item.image); project.layers.push(item.layer); }
+  selected = project.layers.length - 1; report(staged.length === 1 ? '部件已添加' : '已添加 ' + staged.length + ' 个部件'); $('upload').value = '';
 });
 $('layers').onchange = () => { selected = Number($('layers').value); draw(); };
 for (const key of ['x', 'y', 'scale', 'visible']) $(key).onchange = () => {
@@ -54,6 +72,87 @@ $('up').onclick = () => { if (busy || selected >= project.layers.length - 1) ret
 $('remove').onclick = () => { if (busy || !project.layers[selected]) return; checkpoint(); project.layers.splice(selected, 1); draw(); };
 $('undo').onclick = () => { if (!busy && history.length) { project = JSON.parse(history.pop()); draw(); } };
 function download(blob, name) { const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 10000); }
+$('ai-preview').onclick = () => run(async () => {
+  if (!project.layers.length) throw Error('先添加至少一个 PNG 部件');
+  const endpointText = $('ai-base').value.trim(), model = $('ai-model').value.trim(), key = $('ai-key').value.trim(), instruction = $('ai-prompt').value.trim();
+  if (!endpointText || !model || !key || !instruction) throw Error('请填写 API 地址、模型、API Key 和修改要求');
+  let endpoint;
+  try { endpoint = new URL(endpointText); } catch (_) { throw Error('请输入有效的 API 地址'); }
+  if (endpoint.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(endpoint.hostname)) throw Error('API 地址必须使用 HTTPS');
+  if (endpoint.username || endpoint.password || endpoint.hash || endpoint.search) throw Error('API 地址不能包含账号、密码、查询参数或片段');
+  const base = endpoint.href.replace(/\/+$/, '');
+  proposal = null;
+  draw();
+  report('正在请求模型建议…');
+  const before = JSON.stringify(project);
+  const layers = project.layers.map((layer, index) => ({ index, name: layer.name, x: layer.x, y: layer.y, scale: layer.scale, visible: layer.visible }));
+  let response;
+  try {
+    response = await fetch(base + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        messages: [
+          { role: 'system', content: 'Return only a JSON object: {"operations":[{"index":0,"x":12,"y":20,"scale":0.9,"visible":true}]}. You may only change x, y, scale, and visible for existing layer indexes. Omit unchanged fields. Never add, delete, rename, reorder layers, execute code, or return image data. Use valid indexes from the provided list. Coordinates must be between -2048 and 2048; scale between 0.05 and 4.' },
+          { role: 'user', content: JSON.stringify({ instruction, existing_layers: layers }) }
+        ]
+      })
+    });
+  } catch (_) {
+    throw Error('无法连接模型服务；请检查地址、网络和服务端 CORS 设置');
+  }
+  if (!response.ok) throw Error('模型请求失败（HTTP ' + response.status + '）；请检查模型、额度和 API Key');
+  let payload;
+  try { payload = await response.json(); } catch (_) { throw Error('模型服务返回的内容不是有效 JSON'); }
+  const content = payload?.choices?.[0]?.message?.content;
+  if (typeof content !== 'string') throw Error('模型没有返回可读取的修改建议');
+  let answer;
+  const json = content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try { answer = JSON.parse(json); } catch (_) { throw Error('模型没有返回有效 JSON，请重试'); }
+  if (!Array.isArray(answer.operations) || answer.operations.length < 1 || answer.operations.length > project.layers.length) throw Error('建议必须只包含现有图层的修改');
+  const candidate = JSON.parse(before), changed = new Set(), allowed = new Set(['index', 'x', 'y', 'scale', 'visible']);
+  const fields = ['x', 'y', 'scale', 'visible'];
+  for (const operation of answer.operations) {
+    if (!operation || typeof operation !== 'object' || Array.isArray(operation) || Object.keys(operation).some(field => !allowed.has(field))) throw Error('建议包含不支持的字段');
+    const index = operation.index;
+    if (!Number.isInteger(index) || index < 0 || index >= candidate.layers.length || changed.has(index)) throw Error('建议引用了不存在或重复的图层');
+    const keys = fields.filter(field => Object.prototype.hasOwnProperty.call(operation, field));
+    if (!keys.length) throw Error('建议没有可应用的图层修改');
+    for (const field of keys) {
+      const value = operation[field];
+      if (field === 'visible') {
+        if (typeof value !== 'boolean') throw Error('显隐修改必须为 true 或 false');
+      } else if (!Number.isFinite(value)) throw Error('位置和缩放必须是有效数字');
+      if ((field === 'x' || field === 'y') && Math.abs(value) > 2048) throw Error('图层坐标超出安全范围');
+      if (field === 'scale' && (value < 0.05 || value > 4)) throw Error('图层缩放超出安全范围');
+      candidate.layers[index][field] = value;
+    }
+    if (keys.every(field => candidate.layers[index][field] === project.layers[index][field])) throw Error('建议没有产生任何变化');
+    changed.add(index);
+  }
+  proposal = { base: before, candidate };
+  const labels = { x: '水平位置', y: '垂直位置', scale: '缩放', visible: '显示部件' };
+  const diff = [];
+  for (const index of changed) for (const field of fields) {
+    const oldValue = project.layers[index][field], newValue = candidate.layers[index][field];
+    if (oldValue !== newValue) {
+      const row = document.createElement('li');
+      row.textContent = project.layers[index].name + '：' + labels[field] + ' ' + oldValue + ' → ' + newValue;
+      diff.push(row);
+    }
+  }
+  $('proposal-diff').replaceChildren(...diff);
+  draw();
+  report('AI 修改建议已生成；请检查预览后决定是否应用');
+});
+$('ai-apply').onclick = () => {
+  if (busy || !proposal) return;
+  if (JSON.stringify(project) !== proposal.base) { report('项目已变化，请重新生成建议'); draw(); return; }
+  checkpoint(); project = proposal.candidate; proposal = null; draw(); report('已应用 AI 建议，可撤销');
+};
+$('ai-cancel').onclick = () => { if (busy) return; proposal = null; draw(); report('已放弃 AI 建议'); };
 $('save').onclick = () => download(new Blob([JSON.stringify(project)], { type: 'application/json' }), 'character.json');
 $('png').onclick = () => canvas.toBlob(blob => { if (blob) download(blob, 'character.png'); });
 $('open').onchange = () => run(async () => {
@@ -74,3 +173,4 @@ $('open').onchange = () => run(async () => {
   selected = 0; report('项目已打开'); $('open').value = '';
 });
 draw();
+window.addEventListener('pagehide', () => { $('ai-key').value = ''; });

@@ -3,12 +3,12 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lain42 · 角色工作台</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f5f5f7;color:#242424;font:16px system-ui}header,main{max-width:1100px;margin:auto;padding:24px}h1{font-size:28px}p{line-height:1.7;color:#606066}main{display:grid;grid-template-columns:280px 1fr;gap:24px}section,aside{background:white;border-radius:18px;padding:20px}button,input,select{font:inherit;max-width:100%}button{padding:10px 14px;border:1px solid #ddd;border-radius:9px;background:#fff;cursor:pointer;margin:4px 0}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #537de8}label{display:block;margin:14px 0}input[type=number]{width:100%;padding:8px}select{width:100%;padding:8px}canvas{width:100%;height:auto;border:1px solid #eee;background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 0/24px 24px}#status{min-height:2em}small{color:#666}@media(max-width:680px){main{grid-template-columns:1fr;padding:12px}header{padding:18px}section{grid-row:1}}
+*{box-sizing:border-box}body{margin:0;background:#f5f5f7;color:#242424;font:16px system-ui}header,main{max-width:1100px;margin:auto;padding:24px}h1{font-size:28px}p{line-height:1.7;color:#606066}main{display:grid;grid-template-columns:280px 1fr;gap:24px}section,aside{background:white;border-radius:18px;padding:20px}button,input,select,textarea{font:inherit;max-width:100%}button{padding:10px 14px;border:1px solid #ddd;border-radius:9px;background:#fff;cursor:pointer;margin:4px 0}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #537de8}label{display:block;margin:14px 0}input[type=number],input[type=url],input[type=text],input[type=password],textarea{width:100%;padding:8px}select{width:100%;padding:8px}canvas{width:100%;height:auto;border:1px solid #eee;background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 0/24px 24px}#status{min-height:2em}small{color:#666}@media(max-width:680px){main{grid-template-columns:1fr;padding:12px}header{padding:18px}#preview-panel{grid-row:1}aside{grid-row:2}#ai-panel{grid-row:3;grid-column:1}}
 aside,section{min-width:0}canvas{display:block;max-width:100%}
 </style>
-<header><h1>让你的角色，先出现在眼前。</h1><p>上传自己的 PNG 部件，组合、调整并保存。素材只在当前浏览器处理。</p><small>本地编辑验证版 · 尚未接入 AI 与桌宠安装包</small><div id="status" role="status" aria-live="polite"></div></header>
+<header><h1>让你的角色，先出现在眼前。</h1><p>上传自己的 PNG 部件，组合、调整并保存。图像处理留在当前浏览器。</p><small>AI 可提出图层调整建议；PNG 像素不会发送给模型。仍是原型，未接入桌宠安装包。</small><div id="status" role="status" aria-live="polite"></div></header>
 <main><aside>
-<label>添加 PNG 部件<input id="upload" type="file" accept="image/png"></label>
+<label>添加 PNG 部件<input id="upload" type="file" accept="image/png" multiple></label>
 <label>当前图层<select id="layers" aria-label="当前图层"></select></label>
 <label>水平位置<input id="x" type="number" min="-2048" max="2048"></label>
 <label>垂直位置<input id="y" type="number" min="-2048" max="2048"></label>
@@ -18,6 +18,24 @@ aside,section{min-width:0}canvas{display:block;max-width:100%}
 <hr><button id="save">保存项目</button> <button id="png">导出 PNG</button>
 <label>打开项目<input id="open" type="file" accept=".json,application/json"></label>
 <small>关闭页面前请保存项目。最多 12 层；每张 PNG ≤ 2 MB / 2048×2048。</small>
-</aside><section><canvas id="preview" width="768" height="768" aria-label="角色合成预览"></canvas><p>先添加身体，再添加头发、衣服和表情。后添加的部件显示在上方。</p></section></main>
+</aside><section id="preview-panel"><canvas id="preview" width="768" height="768" aria-label="角色合成预览"></canvas><p>先添加身体，再添加头发、衣服和表情。后添加的部件显示在上方。</p></section>
+<section id="ai-panel" style="grid-column:1/-1">
+<h2>用一句话调整现有部件</h2>
+<p>AI 只能建议图层位置、缩放和显隐；不能添加部件或运行代码。先检查预览，再选择应用。PNG 不会上传。</p>
+<label>OpenAI 兼容 API 地址<input id="ai-base" type="url" value="https://api.lain42.top/v1" autocomplete="url"></label>
+<label>模型名称<input id="ai-model" type="text" autocomplete="off" placeholder="填写你的 API 模型名称"></label>
+<label>API Key（只在本页使用，并发送给上面的服务地址）<input id="ai-key" type="password" autocomplete="off" spellcheck="false"></label>
+<small>原型尚未接入 lain42 登录或积分。接口需允许浏览器跨域请求；请只填写你信任的 API 地址。Key 不写入本地存储。</small>
+<label>修改要求<textarea id="ai-prompt" rows="3" maxlength="1000" placeholder="例如：把头发向右移 12 像素，缩小到 90%；让最上面的表情隐藏"></textarea></label>
+<button id="ai-preview">生成修改预览</button>
+<section id="proposal" hidden aria-live="polite">
+<h3>建议预览</h3>
+<canvas id="proposal-canvas" width="768" height="768" aria-label="AI 修改建议预览"></canvas>
+<ul id="proposal-diff"></ul>
+<p id="proposal-warning" role="status"></p>
+<button id="ai-apply">应用建议</button>
+<button id="ai-cancel">放弃建议</button>
+</section>
+</section></main>
 <script src="studio.js"></script>
 </html>
