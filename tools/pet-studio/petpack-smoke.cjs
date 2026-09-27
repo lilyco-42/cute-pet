@@ -29,7 +29,9 @@ const os = require('node:os');
     ];
     for (const [id, count] of actions) {
       await page.locator(`#sheet-${id}`).setInputFiles({ name: `${id}.png`, mimeType: 'image/png', buffer: await makeStrip(count) });
-      await page.getByText(`已载入 ${count} 帧`, { exact: false }).waitFor();
+      await page.waitForFunction(({ id, count }) => {
+        return document.querySelector(`#count-${id}`)?.textContent?.includes(`已载入 ${count} 帧`);
+      }, { id, count });
     }
     await page.locator('#pet-id').fill('test-pet');
     await page.locator('#pet-name').fill('测试桌宠');
