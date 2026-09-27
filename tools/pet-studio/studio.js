@@ -46,7 +46,9 @@ $('layers').onchange = () => { selected = Number($('layers').value); draw(); };
 for (const key of ['x', 'y', 'scale', 'visible']) $(key).onchange = () => {
   if (busy || !project.layers[selected]) return;
   if (key !== 'visible' && (!$(key).value || !$(key).checkValidity())) { report('请输入范围内的数值'); draw(); return; }
-  checkpoint(); project.layers[selected][key] = key === 'visible' ? $(key).checked : Number($(key).value); draw();
+  const value = key === 'visible' ? $(key).checked : Number($(key).value);
+  if (project.layers[selected][key] === value) return;
+  checkpoint(); project.layers[selected][key] = value; draw();
 };
 $('up').onclick = () => { if (busy || selected >= project.layers.length - 1) return; checkpoint(); const a = project.layers; [a[selected], a[selected + 1]] = [a[selected + 1], a[selected]]; selected++; draw(); };
 $('remove').onclick = () => { if (busy || !project.layers[selected]) return; checkpoint(); project.layers.splice(selected, 1); draw(); };
