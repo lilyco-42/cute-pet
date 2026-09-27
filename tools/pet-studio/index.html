@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lain42 · 角色工作台</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f5f7;color:#242424;font:16px system-ui}header,main{max-width:1100px;margin:auto;padding:24px}h1{font-size:28px}p{line-height:1.7;color:#606066}main{display:grid;grid-template-columns:280px 1fr;gap:24px}section,aside{background:white;border-radius:18px;padding:20px}button,input,select{font:inherit;max-width:100%}button{padding:10px 14px;border:1px solid #ddd;border-radius:9px;background:#fff;cursor:pointer;margin:4px 0}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #537de8}label{display:block;margin:14px 0}input[type=number]{width:100%;padding:8px}select{width:100%;padding:8px}canvas{width:100%;height:auto;border:1px solid #eee;background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 0/24px 24px}#status{min-height:2em}small{color:#666}@media(max-width:680px){main{grid-template-columns:1fr;padding:12px}header{padding:18px}section{grid-row:1}}
+</style>
+<header><h1>让你的角色，先出现在眼前。</h1><p>上传自己的 PNG 部件，组合、调整并保存。素材只在当前浏览器处理。</p><small>本地编辑验证版 · 尚未接入 AI 与桌宠安装包</small><div id="status" role="status" aria-live="polite"></div></header>
+<main><aside>
+<label>添加 PNG 部件<input id="upload" type="file" accept="image/png"></label>
+<label>当前图层<select id="layers" aria-label="当前图层"></select></label>
+<label>水平位置<input id="x" type="number" min="-2048" max="2048"></label>
+<label>垂直位置<input id="y" type="number" min="-2048" max="2048"></label>
+<label>缩放<input id="scale" type="number" min="0.05" max="4" step="0.05"></label>
+<label><input id="visible" type="checkbox"> 显示部件</label>
+<button id="up">向前一层</button> <button id="remove">删除部件</button><button id="undo">撤销</button>
+<hr><button id="save">保存项目</button> <button id="png">导出 PNG</button>
+<label>打开项目<input id="open" type="file" accept=".json,application/json"></label>
+<small>关闭页面前请保存项目。最多 12 层；每张 PNG ≤ 2 MB / 2048×2048。</small>
+</aside><section><canvas id="preview" width="768" height="768" aria-label="角色合成预览"></canvas><p>先添加身体，再添加头发、衣服和表情。后添加的部件显示在上方。</p></section></main>
+<script src="studio.js"></script>
+</html>

@@ -1,0 +1,23 @@
+name: Pet Studio Browser Checks
+on:
+  workflow_dispatch:
+  push:
+    paths: ['tools/pet-studio/**', '.github/workflows/pet-studio.yml']
+  pull_request:
+    paths: ['tools/pet-studio/**', '.github/workflows/pet-studio.yml']
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --package-lock=false playwright@1.55.1
+        working-directory: tools/pet-studio
+      - run: npx playwright install --with-deps chromium
+        working-directory: tools/pet-studio
+      - run: node smoke.cjs
+        working-directory: tools/pet-studio
