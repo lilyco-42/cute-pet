@@ -32,4 +32,4 @@
 
 ## 本次实施的验证范围
 
-在 `pet-studio` 新增浏览器本地帧带切分、动作预览和 `.petpack` 导出。实现用 Canvas 与 ZIP Store 模式即可完成，不为贴上 WASM 标签增加编译和下载成本；当前并不执行图像生成，也不把 PNG 发往模型/服务器。远端 Actions 将验证手机宽度、动作帧数、包路径与 manifest；在真实播放器导入之前仍标为实验性适配。
+在 `pet-studio` 新增浏览器本地帧带切分、动作预览和 `.petpack` 导出。实现用 Canvas 与 ZIP Store 模式即可完成，不为贴上 WASM 标签增加编译和下载成本；当前并不执行图像生成，也不把 PNG 发往模型/服务器。GitHub Actions 已通过移动视口浏览器冒烟、22 帧导出、ZIP/manifest/透明 PNG 校验，并通过目标仓库固定提交 `342999f2603261665beaf7adb9e89ce8ff3adeab` 的官方 `petpack_tool.py validate`。首次 CI 暴露了测试等待旧提示的竞态，已改成按动作行等待并重跑成功。这个结果证明格式校验兼容，不等于在桌面播放器 UI 中导入成功；在完成该项前仍标为实验性适配。
