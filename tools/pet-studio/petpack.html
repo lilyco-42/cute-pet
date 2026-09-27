@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lain42 · 动画桌宠包</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f5f7;color:#242424;font:16px system-ui}header,main{max-width:1120px;margin:auto;padding:24px}h1{font-size:28px;margin-bottom:8px}p{line-height:1.65;color:#606066}a{color:#225bd6}main{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.8fr);gap:20px}section{background:white;border-radius:18px;padding:20px;min-width:0}.intro{background:#eef3ff;border-radius:12px;padding:12px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block;font-weight:600;margin:12px 0}input,textarea,select,button{font:inherit;max-width:100%}input[type=text],textarea,select{width:100%;padding:10px;border:1px solid #d7d7dd;border-radius:8px}input[type=file]{display:block;margin-top:8px;width:100%}button{padding:10px 14px;border:1px solid #d6d6dc;border-radius:9px;background:#fff;cursor:pointer}button:disabled{cursor:not-allowed;opacity:.5}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #537de8}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions label{margin:8px 0;padding:12px;border:1px solid #e5e5eb;border-radius:10px;font-weight:500}.hint{font-size:13px;color:#6a6a72}.preview{position:sticky;top:16px;height:max-content}.canvas-wrap{width:min(100%,360px);margin:14px auto}.canvas-wrap canvas{display:block;width:100%;height:auto;border:1px solid #ddd;background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 0/20px 20px}.preview-controls{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}#status{min-height:1.6em;color:#305d27}#export{background:#202124;color:white;border-color:#202124}ul{padding-left:20px;line-height:1.6}@media(max-width:760px){header,main{padding:16px}main{grid-template-columns:1fr}.preview{position:static;grid-row:1}.actions,.form-grid{grid-template-columns:1fr}.canvas-wrap{width:min(100%,300px)}}
+</style>
+<header><h1>把动画帧打包成桌宠</h1><p>使用你已获授权或自行生成的角色素材：上传 5 条透明 PNG 横向帧带，浏览器切帧预览并导出可携带的桌宠包。</p><p class="intro">素材只在当前设备处理，不会上传。每条帧带必须是无间隙横排：待机 4 帧、行走 6 帧、坐下 4 帧、睡觉 4 帧、互动 4 帧；所有格子尺寸相同。此版本负责整理、预览和打包，不会代替生图模型生成动作。</p><p><a href="index.html">← 返回角色素材工作台</a> · <a href="https://github.com/redniu123/pet-player" target="_blank" rel="noreferrer">目标播放器与 .petpack 格式说明</a></p></header>
+<main>
+<section>
+  <h2>桌宠信息</h2>
+  <div class="form-grid">
+    <label>包 ID（小写英文、数字和连字符）<input id="pet-id" type="text" value="my-pet" minlength="2" maxlength="48" pattern="[a-z0-9][a-z0-9-]{1,47}" autocomplete="off"></label>
+    <label>显示名称<input id="pet-name" type="text" value="我的桌宠" maxlength="80"></label>
+  </div>
+  <label>一句介绍<textarea id="pet-description" rows="2" maxlength="500" placeholder="可留空"></textarea></label>
+  <h2>导入动作帧带</h2>
+  <p class="hint">每条 PNG 横向均分成对应数量的格子；格子需使用透明背景，不能带绿色幕布。单条不超过 8 MB，5 条总计不超过 24 MB。</p>
+  <div class="actions">
+    <label>待机 · 4 帧<input id="sheet-idle" type="file" accept="image/png,.png"><small class="hint" id="count-idle">尚未载入</small></label>
+    <label>行走 · 6 帧<input id="sheet-walk" type="file" accept="image/png,.png"><small class="hint" id="count-walk">尚未载入</small></label>
+    <label>坐下 · 4 帧<input id="sheet-sit" type="file" accept="image/png,.png"><small class="hint" id="count-sit">尚未载入</small></label>
+    <label>睡觉 · 4 帧<input id="sheet-sleep" type="file" accept="image/png,.png"><small class="hint" id="count-sleep">尚未载入</small></label>
+    <label>互动 · 4 帧<input id="sheet-reaction" type="file" accept="image/png,.png"><small class="hint" id="count-reaction">尚未载入</small></label>
+  </div>
+  <p id="status" role="status" aria-live="polite">请载入全部 5 个动作帧带后预览和导出。</p>
+  <button id="export" disabled>导出 .petpack</button>
+</section>
+<section class="preview">
+  <h2>动画预览</h2>
+  <div class="preview-controls"><label>动作<select id="action" disabled><option value="idle">待机</option><option value="walk">行走</option><option value="sit">坐下</option><option value="sleep">睡觉</option><option value="reaction">互动</option></select></label><button id="play" disabled>播放</button></div>
+  <div class="canvas-wrap"><canvas id="preview" width="320" height="320" aria-label="桌宠动作预览"></canvas></div>
+  <p id="frame-status" class="hint">载入帧带后即可预览。</p>
+  <ul class="hint"><li>输出为 ZIP 格式 `.petpack`，包含 22 张帧图和版本化 `pet.json`。</li><li>此为对第三方 MIT 播放器格式的实验性适配，未代表已接入 cute-pet 原生运行时。</li></ul>
+</section>
+</main>
+<script src="petpack.js"></script>
+</html>

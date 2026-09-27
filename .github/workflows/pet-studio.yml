@@ -21,3 +21,7 @@ jobs:
         working-directory: tools/pet-studio
       - run: node smoke.cjs
         working-directory: tools/pet-studio
+      - run: node petpack-smoke.cjs
+        working-directory: tools/pet-studio
+      - run: python verify-petpack.py "$RUNNER_TEMP/lain42-petpack-smoke.petpack"
+        working-directory: tools/pet-studio
