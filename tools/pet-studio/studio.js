@@ -5,6 +5,11 @@ let project = { version: 1, layers: [] }, selected = 0, history = [], busy = fal
 const images = new Map();
 function report(text) { $('status').textContent = text; }
 function checkpoint() { history.push(JSON.stringify(project)); if (history.length > 20) history.shift(); }
+function updateLetsGalExportButton() {
+  const hasVisibleLayer = project.layers.some(layer => layer.visible);
+  const hasNames = $('letsgal-name').value.trim().length > 0 && $('letsgal-expression').value.trim().length > 0;
+  $('letsgal-export').disabled = busy || !hasVisibleLayer || !hasNames;
+}
 function drawProject(target, state, targetContext) {
   const paint = targetContext || target.getContext('2d');
   paint.clearRect(0, 0, target.width, target.height);
@@ -15,6 +20,7 @@ function drawProject(target, state, targetContext) {
 }
 function draw() {
   drawProject(canvas, project, ctx);
+  updateLetsGalExportButton();
   const retained = new Set(project.layers.map(l => l.src));
   for (const entry of history) for (const l of JSON.parse(entry).layers) retained.add(l.src);
   for (const key of images.keys()) if (!retained.has(key)) images.delete(key);
@@ -155,6 +161,41 @@ $('ai-apply').onclick = () => {
 $('ai-cancel').onclick = () => { if (busy) return; proposal = null; draw(); report('已放弃 AI 建议'); };
 $('save').onclick = () => download(new Blob([JSON.stringify(project)], { type: 'application/json' }), 'character.json');
 $('png').onclick = () => canvas.toBlob(blob => { if (blob) download(blob, 'character.png'); });
+function createCharacterId() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+$('letsgal-name').addEventListener('input', updateLetsGalExportButton);
+$('letsgal-expression').addEventListener('input', updateLetsGalExportButton);
+$('letsgal-export').onclick = () => run(async () => {
+  if (!project.layers.some(layer => layer.visible)) throw Error('请先添加并显示至少一个 PNG 部件');
+  const name = $('letsgal-name').value.trim();
+  const expression = $('letsgal-expression').value.trim();
+  if (!name || name.length > 80) throw Error('角色名称需为 1–80 个字符');
+  if (!expression || expression.length > 80) throw Error('表情名称需为 1–80 个字符');
+  report('正在本机合成立绘并打包…');
+  const portrait = await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(Error('无法生成透明立绘 PNG')), 'image/png'));
+  const characterId = createCharacterId();
+  const assetPath = `characters/${characterId}/portrait.png`;
+  const character = { id: characterId, name, expressions: [{ name: expression, assetPath }] };
+  const fragment = {
+    format: 'lain42.letsgal-character-fragment',
+    version: 1,
+    character,
+  };
+  const guide = `# 导入到 LetsGal Studio\n\n1. 将本包内的 assets/ 目录复制到现有游戏工程根目录，合并文件夹，不要覆盖整个工程。\n2. 打开 characters.fragment.json，将其中的 character 对象合并进工程 characters.json 的 characters 数组；已有同名角色时，把 expressions 中的表情合并进去。\n3. 在 letsgal-ai 工程目录运行：\n\n   \`letsgal-ai register-asset <工程目录> --rel ${assetPath}\`\n\n4. 运行 \`letsgal-ai validate <工程目录>\` 检查工程。\n\n角色图片在浏览器本机合成；本包只包含 PNG、角色映射和本说明，不会改写游戏工程或执行脚本。`;
+  const zip = await window.Lain42Zip.createStoredZip([
+    { name: `assets/${assetPath}`, blob: portrait },
+    { name: 'characters.fragment.json', blob: new Blob([JSON.stringify(fragment, null, 2) + '\n'], { type: 'application/json' }) },
+    { name: 'IMPORT.md', blob: new Blob([guide], { type: 'text/markdown;charset=utf-8' }) },
+  ]);
+  download(zip, 'letsgal-character.zip');
+  report('已下载 Let’sGal 角色包。解压后按 IMPORT.md 合并映射并登记素材；游戏工程未被修改。');
+});
 $('open').onchange = () => run(async () => {
   const f = $('open').files[0]; if (!f) return;
   if (f.size > 34 * 1024 * 1024) throw Error('项目文件超过 34 MB');

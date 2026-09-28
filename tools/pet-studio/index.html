@@ -17,6 +17,11 @@ aside,section{min-width:0}canvas{display:block;max-width:100%}
 <button id="up">向前一层</button> <button id="remove">删除部件</button><button id="undo">撤销</button>
 <hr><button id="save">保存项目</button> <button id="png">导出 PNG</button>
 <label>打开项目<input id="open" type="file" accept=".json,application/json"></label>
+<hr><h2>导出到 Let’sGal Studio</h2>
+<p>将当前可见图层合成为透明立绘，并附角色映射和导入说明。只生成素材包，不会修改你的游戏工程。</p>
+<label>角色名称<input id="letsgal-name" type="text" maxlength="80" autocomplete="off" placeholder="例如：穗"></label>
+<label>表情名称<input id="letsgal-expression" type="text" maxlength="80" autocomplete="off" value="默认"></label>
+<button id="letsgal-export" disabled>下载 Let’sGal 角色包 (.zip)</button>
 <small>关闭页面前请保存项目。最多 12 层；每张 PNG ≤ 2 MB / 2048×2048。</small>
 </aside><section id="preview-panel"><canvas id="preview" width="768" height="768" aria-label="角色合成预览"></canvas><p>先添加身体，再添加头发、衣服和表情。后添加的部件显示在上方。</p></section>
 <section id="ai-panel" style="grid-column:1/-1">
@@ -37,5 +42,6 @@ aside,section{min-width:0}canvas{display:block;max-width:100%}
 <button id="ai-cancel">放弃建议</button>
 </section>
 </section></main>
+<script src="zip-store.js"></script>
 <script src="studio.js"></script>
 </html>

@@ -7,9 +7,25 @@ const path = require('node:path');
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await page.goto(pathToFileURL(path.join(__dirname, 'index.html')).href);
+    const unsafeZipRejected = await page.evaluate(async () => {
+      try { await window.Lain42Zip.createStoredZip([{ name: '../escape.txt', blob: new Blob(['x']) }]); return false; }
+      catch (error) { return /ZIP 文件路径无效/.test(error.message); }
+    });
+    assert.equal(unsafeZipRejected, true, 'ZIP writer must reject traversal paths');
     const png = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = c.height = 16; c.getContext('2d').fillRect(0, 0, 16, 16); return c.toDataURL(); });
     await page.locator('#upload').setInputFiles({ name: 'body.png', mimeType: 'image/png', buffer: Buffer.from(png.split(',')[1], 'base64') });
     await page.getByText('部件已添加', { exact: true }).waitFor();
+    assert.equal(await page.locator('#letsgal-export').isDisabled(), true, 'Let\'sGal export needs a character name');
+    await page.locator('#letsgal-name').fill('穗');
+    await page.locator('#letsgal-expression').fill('微笑');
+    assert.equal(await page.locator('#letsgal-export').isDisabled(), false);
+    const bundleDownloadPromise = page.waitForEvent('download');
+    await page.locator('#letsgal-export').click();
+    const bundleDownload = await bundleDownloadPromise;
+    assert.equal(bundleDownload.suggestedFilename(), 'letsgal-character.zip');
+    const bundleOutput = path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'lain42-letsgal-character.zip');
+    await bundleDownload.saveAs(bundleOutput);
+    await page.getByText(/游戏工程未被修改/).waitFor();
     await page.locator('#x').fill('42'); await page.locator('#x').dispatchEvent('change');
     await page.locator('#undo').click(); assert.equal(await page.locator('#x').inputValue(), '0');
     const downloadPromise = page.waitForEvent('download'); await page.locator('#save').click();
@@ -78,6 +94,6 @@ const path = require('node:path');
     await page.getByText('图层坐标超出安全范围', { exact: true }).waitFor();
     assert.equal(await page.locator('#x').inputValue(), '0', 'out-of-range model output must not mutate the project');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-    console.log('PASS: upload, edit undo, project roundtrip, corrupt import, mobile layout, local-only AI preview/apply/cancel/undo, patch bounds and key storage');
+    console.log(`PASS: upload, Let’sGal bundle download (${bundleOutput}), edit undo, project roundtrip, corrupt import, mobile layout, local-only AI preview/apply/cancel/undo, patch bounds and key storage`);
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
